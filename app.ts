@@ -1,4 +1,4 @@
-import { ChildProcessWithoutNullStreams, exec, spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { app, BrowserWindow, dialog, Menu, screen, Tray } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -43,6 +43,7 @@ function startServer() {
   server.stderr.on('data', data => {
     console.log(`${data}`);
   });
+
   return server;
 }
 
@@ -52,10 +53,12 @@ function shutdown() {
     win.close()
     win = null;
   }
-  if (tray) {
-    tray.setContextMenu(Menu.buildFromTemplate([{ label: 'Shutting down...' }]));
-  }
-  exec('docker compose -f app/docker-compose.yaml down', () => app.quit());
+  tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Shutting down...' },
+      { label: 'Force Quit', click: app.quit },
+  ]));
+  const server = spawn('docker', ['compose', '-f', serverConfig, 'down']);
+  server.once('close', app.quit);
 }
 
 function createWindow() {
@@ -206,7 +209,7 @@ function waitForClient(cb) {
   });
 }
 
-let tray: Tray | null;
+let tray: Tray;
 let win: BrowserWindow | null;
 let settings: BrowserWindow | null;
 let server: ChildProcessWithoutNullStreams;
@@ -215,7 +218,6 @@ app.on('ready', () => {
   tray = createTray();
   server = startServer();
   waitForClient(() => createWindow());
-  // createWindow();
 });
 
 app.on('window-all-closed', () => {
