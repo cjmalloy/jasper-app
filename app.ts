@@ -20,6 +20,7 @@ catch(e) {
     clientPort: '8082',
     clientTitle: 'Jasper',
     dataDir: path.join(app.getPath('userData'), 'data'),
+    storageDir: path.join(app.getPath('userData'), 'storage'),
   };
 }
 
@@ -51,6 +52,7 @@ function writeEnv() {
   process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
   process.env.JASPER_DATA_DIR = data.dataDir;
+  process.env.JASPER_STORAGE_DIR = data.storageDir;
 }
 
 function startServer() {

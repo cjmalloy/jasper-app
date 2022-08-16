@@ -8,6 +8,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
+    volumes:
+      - "${JASPER_STORAGE_DIR:-/var/lib/jasper}:/var/lib/jasper"
     depends_on:
       - db
   db:

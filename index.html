@@ -23,7 +23,8 @@
       'clientVersion',
       'clientPort',
       'clientTitle',
-      'dataDir'
+      'dataDir',
+      'storageDir'
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
@@ -73,8 +74,11 @@
   <label for="clientPort">Client Port</label>
   <input id="clientPort" type="text" />
 
-  <label for="dataDir">Data Directory</label>
+  <label for="dataDir">Database Directory</label>
   <input id="dataDir" type="text" />
+
+  <label for="storageDir">Storage & Backups Directory</label>
+  <input id="storageDir" type="text" />
 
   <span><!-- Buttons --></span>
   <div>
