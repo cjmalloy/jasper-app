@@ -1,5 +1,5 @@
 import { ChildProcessWithoutNullStreams, exec, spawn } from 'child_process';
-import { app, BrowserWindow, Menu, screen, Tray } from 'electron';
+import { app, BrowserWindow, dialog, Menu, screen, Tray } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
@@ -28,7 +28,15 @@ function startServer() {
   process.env.JASPER_CLIENT_PORT = data.clientPort ?? '8082';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
   process.env.JASPER_DATA_DIR = data.dataDir ?? path.join(app.getPath('userData'), 'data');
+
   const server = spawn('docker', ['compose', '-f', serverConfig, 'up']);
+  server.once('error', err => {
+    dialog.showErrorBox('Docker Compose Missing',
+        'This application requires docker compose to be installed.\n' +
+        'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+        ''+err);
+    app.quit();
+  });
   server.stdout.on('data', data => {
     console.log(`${data}`);
   });
