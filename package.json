@@ -26,6 +26,9 @@
       "!package.json",
       "!package-lock.json"
     ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    }
   },
   "license": "MIT",
   "devDependencies": {
