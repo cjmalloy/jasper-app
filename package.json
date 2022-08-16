@@ -28,6 +28,11 @@
     ],
     "mac": {
       "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
     }
   },
   "license": "MIT",
