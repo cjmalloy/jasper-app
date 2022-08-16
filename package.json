@@ -27,7 +27,10 @@
       "!package-lock.json"
     ],
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg"
+      ]
     },
     "linux": {
       "target": [
