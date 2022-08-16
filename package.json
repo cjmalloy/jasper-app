@@ -14,6 +14,19 @@
     "start": "npm run tsc && electron app.js",
     "build": "npm run tsc && electron-builder build"
   },
+  "build": {
+    "asar": false,
+    "directories": {
+      "output": "release/"
+    },
+    "files": [
+      "**/*",
+      "!**/*.ts",
+      "!*.map",
+      "!package.json",
+      "!package-lock.json"
+    ],
+  },
   "license": "MIT",
   "devDependencies": {
     "electron": "^20.0.2",
