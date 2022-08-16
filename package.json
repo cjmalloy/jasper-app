@@ -1,0 +1,29 @@
+{
+  "name": "jasper-app",
+  "version": "1.0.0",
+  "description": "Desktop app for Jasper KMS",
+  "repository": "cjmalloy/jasper-app",
+  "author": {
+    "name":  "Chris Malloy",
+    "email": "cjmalloy@gmail.com"
+  },
+  "main": "app.js",
+  "scripts": {
+    "postinstall": "electron-builder install-app-deps",
+    "tsc": "tsc -p tsconfig.json",
+    "start": "npm run tsc && electron app.js",
+    "build": "npm run tsc && electron-builder build"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^20.0.2",
+    "electron-builder": "^23.3.3",
+    "electron-debug": "^3.2.0",
+    "electron-reloader": "^1.2.3",
+    "typescript": "~4.6.2",
+    "wait-on": "^6.0.1"
+  },
+  "dependencies": {
+    "request": "^2.88.2"
+  }
+}

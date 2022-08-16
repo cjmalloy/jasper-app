@@ -1,0 +1,13 @@
+{
+  "asar": false,
+  "directories": {
+    "output": "release/"
+  },
+  "files": [
+    "**/*",
+    "!**/*.ts",
+    "!*.map",
+    "!package.json",
+    "!package-lock.json"
+  ]
+}
