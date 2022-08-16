@@ -4,7 +4,7 @@ services:
     ports:
       - "${JASPER_SERVER_PORT:-8081}:8081"
     environment:
-      SPRING_PROFILES_ACTIVE: "${JASPER_PROFILES:-prod,admin,storage,feed-burst,repl-burst}"
+      SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,admin,storage,feed-burst,repl-burst}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
@@ -24,4 +24,5 @@ services:
       - "${JASPER_CLIENT_PORT:-8082}:80"
     environment:
       JASPER_API: "http://localhost:${JASPER_SERVER_PORT:-8081}"
+      JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
 

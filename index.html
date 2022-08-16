@@ -5,19 +5,90 @@
   <title>Jasper App Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body.init-theme {
-      /* Prevent bright flash while loading */
-      background-color: black;
-      background-blend-mode: soft-light;
-      background-position: center center;
-      background-repeat: no-repeat;
-      animation: fadein 5s ease-in-out;
-      animation-iteration-count: infinite;
-      height: 100vh;
+    .label-column {
+      display: grid;
+      grid-gap: 8px;
+      grid-template-columns: min-content auto;
+    }
+    label, button {
+      white-space: nowrap;
     }
   </style>
+  <script>
+    let sender;
+    const fields = [
+      'serverVersion',
+      'serverPort',
+      'serverProfiles',
+      'clientVersion',
+      'clientPort',
+      'clientTitle',
+      'dataDir'
+    ];
+
+    window.electronAPI.handleSettings((event, settings) => {
+      sender = event.sender;
+      for (const f of fields) {
+        document.getElementById(f).value = settings[f] ??'';
+      }
+    });
+
+    function save() {
+      const settings = {};
+      for (const f of fields) {
+        settings[f] = document.getElementById(f).value;
+      }
+      sender.send('settings-value', settings);
+      window.close();
+    }
+
+    function restart() {
+      sender.send('restart');
+    }
+
+    function update() {
+      sender.send('update');
+    }
+  </script>
 </head>
 <body>
+<h1>Jasper Application Settings</h1>
+<div class="label-column">
 
+  <label for="serverVersion">Server Version</label>
+  <input id="serverVersion" type="text" />
+
+  <label for="serverPort">Server Port</label>
+  <input id="serverPort" type="text" />
+
+  <label for="serverProfiles">Server Profiles</label>
+  <input id="serverProfiles" type="text" />
+
+  <label for="clientTitle">Client Title</label>
+  <input id="clientTitle" type="text" />
+
+  <label for="clientVersion">Client Version</label>
+  <input id="clientVersion" type="text" />
+
+  <label for="clientPort">Client Port</label>
+  <input id="clientPort" type="text" />
+
+  <label for="dataDir">Data Directory</label>
+  <input id="dataDir" type="text" />
+
+  <span><!-- Buttons --></span>
+  <div>
+    <button type="button" onclick="save()">Save & Hard Reload</button>
+  </div>
+</div>
+<h2>Troubleshooting</h2>
+<div class="label-column">
+
+  <button type="button" onclick="restart()">Restart Server</button>
+  <label>Restart the servers and database</label>
+
+  <button type="button" onclick="update()">Pull New Images</button>
+  <label>Check for updates and download them if available</label>
+</div>
 </body>
 </html>

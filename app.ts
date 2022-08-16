@@ -1,50 +1,69 @@
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import { app, BrowserWindow, dialog, Menu, screen, Tray } from 'electron';
+import { app, BrowserWindow, dialog, Menu, screen, Tray, ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
-const initPath = path.join(app.getPath('userData'), 'init.json');
+const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
 let data: any = {};
 try {
-  data = JSON.parse(fs.readFileSync(initPath, 'utf8'));
+  data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
 }
-catch(e) { }
+catch(e) {
+  data = {
+    serverVersion: 'latest',
+    serverPort: '8081',
+    serverProfiles: 'prod,admin,storage,feed-burst,repl-burst',
+    clientVersion: 'latest',
+    clientPort: '8082',
+    clientTitle: 'Jasper',
+    dataDir: path.join(app.getPath('userData'), 'data'),
+  };
+}
+
 function writeData() {
-  fs.writeFileSync(initPath, JSON.stringify(data));
+  fs.writeFileSync(settingsPath, JSON.stringify(data));
 }
 
 function getEntry() {
-  return 'http://localhost:' + (data.clientPort ?? '8082');
+  return 'http://localhost:' + data.clientPort;
+}
+
+function dc(command: string) {
+  const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
+  dc.stdout.on('data', data => {
+    console.log(`${data}`);
+  });
+  dc.stderr.on('data', data => {
+    console.log(`${data}`);
+  });
+  return dc;
+}
+
+function writeEnv() {
+  process.env.JASPER_PROFILES = data.serverProfiles ?? '';
+  process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
+  process.env.JASPER_SERVER_PORT = data.serverPort;
+  process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
+  process.env.JASPER_CLIENT_PORT = data.clientPort;
+  process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
+  process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
+  process.env.JASPER_DATA_DIR = data.dataDir;
 }
 
 function startServer() {
-  process.env.JASPER_PROFILES = data.profiles ?? '';
-  process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
-  process.env.JASPER_SERVER_PORT = data.serverPort ?? '8081';
-  process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
-  process.env.JASPER_CLIENT_PORT = data.clientPort ?? '8082';
-  process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
-  process.env.JASPER_DATA_DIR = data.dataDir ?? path.join(app.getPath('userData'), 'data');
+  writeEnv();
 
-  const server = spawn('docker', ['compose', '-f', serverConfig, 'up']);
-  server.once('error', err => {
-    dialog.showErrorBox('Docker Compose Missing',
-        'This application requires docker compose to be installed.\n' +
-        'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
-        ''+err);
-    app.quit();
-  });
-  server.stdout.on('data', data => {
-    console.log(`${data}`);
-  });
-  server.stderr.on('data', data => {
-    console.log(`${data}`);
-  });
-
-  return server;
+  return dc('up')
+      .once('error', err => {
+        dialog.showErrorBox('Docker Compose Missing',
+            'This application requires docker compose to be installed.\n' +
+            'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+            ''+err);
+        app.quit();
+      });
 }
 
 function shutdown() {
@@ -57,8 +76,8 @@ function shutdown() {
       { label: 'Shutting down...' },
       { label: 'Force Quit', click: app.quit },
   ]));
-  const server = spawn('docker', ['compose', '-f', serverConfig, 'down']);
-  server.once('close', app.quit);
+  dc('down')
+      .once('close', app.quit);
 }
 
 function createWindow() {
@@ -87,8 +106,8 @@ function createWindow() {
   win.loadURL(getEntry());
 
   win.once('ready-to-show', () => {
-    win.show()
-  })
+    win.show();
+  });
 
   win.on('resize', () => {
     if (!win) return;
@@ -143,20 +162,24 @@ function createSettingsWindow() {
     icon: path.join(__dirname, 'icon.png'),
     titleBarStyle: 'hiddenInset',
     show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
   });
 
   settings.loadFile(path.join(__dirname, 'index.html'));
 
   settings.once('ready-to-show', () => {
-    settings.show()
-  })
+    settings.show();
+    settings.webContents.send('update-settings', data);
+  });
 
-  win.on('resize', () => {
-    if (!win) return;
+  settings.on('resize', () => {
+    if (!settings) return;
     if (data.maximized) return;
     data.settings.bounds = {
       ...data.settings.bounds,
-      ...win.getBounds(),
+      ...settings.getBounds(),
     };
   });
 
@@ -165,7 +188,7 @@ function createSettingsWindow() {
     if (data.settings.maximized) return;
     data.settings.bounds = {
       ...data.settings.bounds,
-      ...win.getPosition(),
+      ...settings.getPosition(),
     };
   });
 
@@ -209,12 +232,32 @@ function waitForClient(cb) {
   });
 }
 
+function updateSettings(value) {
+  data = {
+    ...data,
+    ...value,
+  };
+  writeEnv();
+  writeData();
+  dc('down').once('close', () => {
+    server = startServer();
+    if (win) {
+      win.close();
+      win = null;
+      waitForClient(() => createWindow());
+    }
+  });
+}
+
 let tray: Tray;
 let win: BrowserWindow | null;
 let settings: BrowserWindow | null;
 let server: ChildProcessWithoutNullStreams;
 
 app.on('ready', () => {
+  ipcMain.on('settings-value', (_event, value) => updateSettings(value));
+  ipcMain.on('restart', () => dc('restart'));
+  ipcMain.on('update', () => dc('pull'));
   tray = createTray();
   server = startServer();
   waitForClient(() => createWindow());
