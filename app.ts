@@ -33,7 +33,7 @@ function getEntry() {
 }
 
 function dc(command: string) {
-  const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
+  const dc = spawn('docker', ['compose', '-f', serverConfig, command], {shell: true});
   dc.stdout.on('data', data => {
     console.log(`${data}`);
   });
@@ -63,7 +63,7 @@ function startServer() {
         dialog.showErrorBox('Docker Compose Missing',
             'This application requires docker compose to be installed.\n' +
             'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
-            ''+err);
+            err);
         app.quit();
       });
 }
