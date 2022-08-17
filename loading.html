@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <title>Jasper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      /* Prevent bright flash while loading */
+      background-color: black;
+      background-image: url("jasper-dark.png");
+      background-blend-mode: soft-light;
+      background-position: center center;
+      background-repeat: no-repeat;
+      animation: fadein 5s ease-in-out;
+      animation-iteration-count: infinite;
+      height: 100vh;
+      overflow: hidden;
+    }
+    @keyframes fadein {
+      from {
+        background-color: black;
+      }
+      50% {
+        background-color: #212121;
+      }
+      to {
+        background-color: black;
+      }
+    }
+  </style>
+</head>
+</html>

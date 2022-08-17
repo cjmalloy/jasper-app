@@ -82,7 +82,7 @@ function shutdown() {
       .once('close', app.quit);
 }
 
-function createWindow() {
+function createWindow(showLoading = false) {
   if (win) {
     win.show();
     return;
@@ -98,6 +98,7 @@ function createWindow() {
   win = new BrowserWindow({
     ...data.bounds,
     titleBarStyle: 'hiddenInset',
+    autoHideMenuBar: true,
     show: false,
   });
 
@@ -105,7 +106,12 @@ function createWindow() {
     win.maximize();
   }
 
-  win.loadURL(getEntry());
+  if (showLoading) {
+    win.loadFile(path.join(__dirname, 'loading.html'));
+  }
+  waitForClient(() => {
+    win.loadURL(getEntry());
+  }, showLoading ? 5000 : 100);
 
   win.once('ready-to-show', () => {
     win.show();
@@ -163,15 +169,17 @@ function createSettingsWindow() {
     ...data.settings.bounds,
     icon: path.join(__dirname, 'icon.png'),
     titleBarStyle: 'hiddenInset',
+    autoHideMenuBar: true,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
   });
 
-  settings.loadFile(path.join(__dirname, 'index.html'));
+  settings.loadFile(path.join(__dirname, 'settings.html'));
 
   settings.once('ready-to-show', () => {
+    if (!settings) return;
     settings.show();
     settings.webContents.send('update-settings', data);
   });
@@ -213,7 +221,7 @@ function createSettingsWindow() {
 function createTray() {
   const tray = new Tray(path.join(__dirname, 'app.png'));
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show Window', click: createWindow },
+    { label: 'Show Window', click: () => createWindow(false) },
     { label: 'Settings', click: createSettingsWindow },
     { label: 'Quit', click: shutdown },
   ]);
@@ -223,13 +231,12 @@ function createTray() {
   return tray;
 }
 
-function waitForClient(cb) {
+function waitForClient(cb, firstDelay = 100) {
   request(getEntry(), (error, response, body) => {
     if (!error && response.statusCode == 200) {
       cb();
-    }
-    else {
-      setTimeout(() => waitForClient(cb), 100);
+    } else {
+      setTimeout(() => waitForClient(cb), firstDelay);
     }
   });
 }
@@ -244,9 +251,8 @@ function updateSettings(value) {
   dc('down').once('close', () => {
     server = startServer();
     if (win) {
+      win.once('closed', createWindow)
       win.close();
-      win = null;
-      waitForClient(() => createWindow());
     }
   });
 }
@@ -262,7 +268,7 @@ app.on('ready', () => {
   ipcMain.on('update', () => dc('pull'));
   tray = createTray();
   server = startServer();
-  waitForClient(() => createWindow());
+  createWindow(true);
 });
 
 app.on('window-all-closed', () => {
