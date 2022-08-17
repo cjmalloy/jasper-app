@@ -1,5 +1,5 @@
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import { app, BrowserWindow, dialog, Menu, screen, Tray, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, Menu, screen, Tray, ipcMain, nativeImage } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
@@ -97,7 +97,6 @@ function createWindow(showLoading = false) {
   // Create the browser window.
   win = new BrowserWindow({
     ...data.bounds,
-    titleBarStyle: 'hiddenInset',
     autoHideMenuBar: true,
     show: false,
   });
@@ -168,7 +167,6 @@ function createSettingsWindow() {
   settings = new BrowserWindow({
     ...data.settings.bounds,
     icon: path.join(__dirname, 'icon.png'),
-    titleBarStyle: 'hiddenInset',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -219,13 +217,14 @@ function createSettingsWindow() {
 }
 
 function createTray() {
-  const tray = new Tray(path.join(__dirname, 'app.png'));
+  let icon = nativeImage.createFromPath(path.join(__dirname, 'app.png'));
+  if (process.platform === 'darwin') icon = icon.resize({width: 32});
+  const tray = new Tray(icon);
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Show Window', click: () => createWindow(false) },
     { label: 'Settings', click: createSettingsWindow },
     { label: 'Quit', click: shutdown },
   ]);
-  tray.setTitle('Jasper');
   tray.setToolTip('Jasper');
   tray.setContextMenu(contextMenu);
   return tray;
