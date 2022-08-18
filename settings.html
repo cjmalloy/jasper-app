@@ -76,6 +76,10 @@
       }
     });
 
+    window.electronAPI.notifyFinished((event, command) => {
+      finished(command);
+    });
+
     function save() {
       const settings = {};
       for (const f of fields) {
@@ -85,12 +89,15 @@
       window.close();
     }
 
-    function restart() {
-      sender.send('restart');
+    function sendCommand(id) {
+      sender.send('command', id);
+      document.getElementById(id + '-button').style.display = 'none';
+      document.getElementById(id + '-loading').style.display = 'block';
     }
 
-    function update() {
-      sender.send('update');
+    function finished(id) {
+      document.getElementById(id + '-button').style.display = 'block';
+      document.getElementById(id + '-loading').style.display = 'none';
     }
   </script>
 </head>
@@ -132,10 +139,12 @@
 <h2>Troubleshooting</h2>
 <div class="label-column">
 
-  <button type="button" onclick="restart()">Restart Server</button>
+  <button id="restart-button" type="button" onclick="sendCommand('restart')">Restart Server</button>
+  <span id="restart-loading" class="loading">...</span>
   <label>Restart the servers and database</label>
 
-  <button type="button" onclick="update()">Pull New Images</button>
+  <button id="pull-button" type="button" onclick="sendCommand('pull')">Pull New Images</button>
+  <span id="pull-loading" class="loading">...</span>
   <label>Check for updates and download them if available</label>
 </div>
 </body>

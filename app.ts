@@ -1,5 +1,5 @@
-import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import { app, BrowserWindow, dialog, Menu, screen, Tray, ipcMain, nativeImage } from 'electron';
+import { spawn } from 'child_process';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, Tray } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
@@ -34,6 +34,14 @@ function getEntry() {
 
 function getServerHealthCheck() {
   return `http://localhost:${data.serverPort}/management/health/readiness`;
+}
+
+function notify(command: string) {
+  return dc(command).once('close', () => {
+    if (settings && !settings.isDestroyed()) {
+      settings.webContents.send('finished', command);
+    }
+  });
 }
 
 function dc(command: string) {
@@ -231,7 +239,7 @@ function updateSettings(value) {
   writeEnv();
   writeData();
   dc('down').once('close', () => {
-    server = startServer();
+    startServer();
     if (win && !win.isDestroyed()) {
       win.once('closed', createMainWindow)
       win.close();
@@ -244,14 +252,12 @@ let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
 let settings: BrowserWindow;
-let server: ChildProcessWithoutNullStreams;
 
 app.on('ready', () => {
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
-  ipcMain.on('restart', () => dc('restart'));
-  ipcMain.on('update', () => dc('pull'));
+  ipcMain.on('command', (_event, value) => notify(value));
   tray = createTray();
-  server = startServer();
+  startServer();
   createMainWindow(true);
 });
 
