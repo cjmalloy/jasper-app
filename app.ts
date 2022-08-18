@@ -175,7 +175,12 @@ function createSettingsWindow() {
     return;
   }
 
-  if (!data.settings) data.settings = {};
+  if (!data.settings) data.settings = {
+    bounds: {
+      width: 540,
+      height: 620,
+    }
+  };
   settings = createWindow(data.settings);
   settings.loadFile(path.join(__dirname, 'settings.html'));
   settings.once('ready-to-show', () => {
