@@ -29,16 +29,26 @@ function writeData() {
 }
 
 function getEntry() {
-  return 'http://localhost:' + data.clientPort;
+  return `http://localhost:${data.clientPort}`;
+}
+
+function getServerHealthCheck() {
+  return `http://localhost:${data.serverPort}/management/health/readiness`;
 }
 
 function dc(command: string) {
   const dc = spawn('docker', ['compose', '-f', serverConfig, command], {shell: true});
   dc.stdout.on('data', data => {
     console.log(`${data}`);
+    if (win && !firstLoad) {
+      win.webContents.send('stream-logs', `${data}`);
+    }
   });
   dc.stderr.on('data', data => {
     console.log(`${data}`);
+    if (win && !firstLoad) {
+      win.webContents.send('stream-logs', `${data}`);
+    }
   });
   return dc;
 }
@@ -99,6 +109,9 @@ function createWindow(showLoading = false) {
     ...data.bounds,
     autoHideMenuBar: true,
     show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
   });
 
   if (data.maximized) {
@@ -108,8 +121,11 @@ function createWindow(showLoading = false) {
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  waitForClient(() => {
-    win.loadURL(getEntry());
+  waitFor200(getEntry(), () => {
+    waitFor200(getServerHealthCheck(), () => {
+      firstLoad = true;
+      win.loadURL(getEntry());
+    });
   }, showLoading ? 5000 : 100);
 
   win.once('ready-to-show', () => {
@@ -230,12 +246,12 @@ function createTray() {
   return tray;
 }
 
-function waitForClient(cb, firstDelay = 100) {
+function waitFor200(url, cb, firstDelay = 100) {
   request(getEntry(), (error, response, body) => {
     if (!error && response.statusCode == 200) {
       cb();
     } else {
-      setTimeout(() => waitForClient(cb), firstDelay);
+      setTimeout(() => waitFor200(url, cb), firstDelay);
     }
   });
 }
@@ -256,6 +272,7 @@ function updateSettings(value) {
   });
 }
 
+let firstLoad = false;
 let tray: Tray;
 let win: BrowserWindow | null;
 let settings: BrowserWindow | null;

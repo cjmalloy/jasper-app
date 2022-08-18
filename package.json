@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Desktop app for Jasper KMS",
   "repository": "cjmalloy/jasper-app",
   "author": {

@@ -18,6 +18,22 @@
       height: 100vh;
       overflow: hidden;
     }
+    #log-container {
+      position: absolute;
+      top: calc(50% + 100px);
+      left: 8px;
+      right: 8px;
+      bottom: 0;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #FFF 10%, #FFF 100%);
+    }
+    #logs {
+      font-family: monospace;
+      position: absolute;
+      bottom: 0;
+      color: #AAA;
+      white-space: nowrap;
+    }
     @keyframes fadein {
       from {
         background-color: black;
@@ -30,5 +46,22 @@
       }
     }
   </style>
+  <script>
+    window.electronAPI.streamLogs((event, data) => {
+      const withoutColors = data.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      const lines = withoutColors.split(/[\r\n]+/);
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        document.getElementById('logs').append(line);
+        document.getElementById('logs').appendChild(document.createElement('br'));
+      }
+    });
+  </script>
 </head>
+<body>
+<div id="log-container">
+  <div id="logs"></div>
+</div>
+</body>
 </html>
