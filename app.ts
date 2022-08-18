@@ -52,7 +52,7 @@ function dc(command: string) {
     if (win && !win.isDestroyed() && !firstLoad) {
       win.webContents.send('stream-logs', `${data}`);
     }
-    if (logs) {
+    if (logs && !logs.isDestroyed()) {
       logs.webContents.send('stream-logs', `${data}`);
     }
   });
