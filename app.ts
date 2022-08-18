@@ -40,14 +40,20 @@ function dc(command: string) {
   const dc = spawn('docker', ['compose', '-f', serverConfig, command], {shell: true});
   dc.stdout.on('data', data => {
     console.log(`${data}`);
-    if (win && !firstLoad) {
+    if (win && !win.isDestroyed() && !firstLoad) {
       win.webContents.send('stream-logs', `${data}`);
+    }
+    if (logs && !logs.isDestroyed()) {
+      logs.webContents.send('stream-logs', `${data}`);
     }
   });
   dc.stderr.on('data', data => {
     console.log(`${data}`);
-    if (win && !firstLoad) {
+    if (win && !win.isDestroyed() && !firstLoad) {
       win.webContents.send('stream-logs', `${data}`);
+    }
+    if (logs) {
+      logs.webContents.send('stream-logs', `${data}`);
     }
   });
   return dc;
@@ -80,9 +86,8 @@ function startServer() {
 
 function shutdown() {
   writeData();
-  if (win) {
-    win.close()
-    win = null;
+  if (win && !win.isDestroyed()) {
+    win.close();
   }
   tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Shutting down...' },
@@ -92,21 +97,16 @@ function shutdown() {
       .once('close', app.quit);
 }
 
-function createWindow(showLoading = false) {
-  if (win) {
-    win.show();
-    return;
-  }
-
+function createWindow(config: any) {
   const size = screen.getPrimaryDisplay().workAreaSize;
-  if (!data.bounds) data.bounds = {
+  if (!config.bounds) config.bounds = {
     width: size.width * 0.8,
     height: size.height * 0.8,
   };
 
   // Create the browser window.
-  win = new BrowserWindow({
-    ...data.bounds,
+  const handle = new BrowserWindow({
+    ...config.bounds,
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -114,10 +114,50 @@ function createWindow(showLoading = false) {
     }
   });
 
-  if (data.maximized) {
-    win.maximize();
+  if (config.maximized) {
+    handle.maximize();
   }
 
+  handle.once('ready-to-show', () => {
+    handle.show();
+  });
+
+  handle.on('resize', () => {
+    if (handle.isDestroyed()) return;
+    if (config.maximized) return;
+    config.bounds = {
+      ...config.bounds,
+      ...win.getBounds(),
+    };
+  });
+
+  handle.on('move', () => {
+    if (handle.isDestroyed()) return;
+    if (config.maximized) return;
+    config.bounds = {
+      ...config.bounds,
+      ...win.getPosition(),
+    };
+  });
+
+  handle.on('maximize', () => {
+    if (handle.isDestroyed()) return;
+    config.maximized = true;
+  });
+
+  handle.on('unmaximize', () => {
+    if (handle.isDestroyed()) return;
+    config.maximized = false;
+  });
+  return handle;
+}
+
+function createMainWindow(showLoading = false) {
+  if (win && !win.isDestroyed()) {
+    win.show();
+    return;
+  }
+  win = createWindow(data);
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
@@ -127,109 +167,30 @@ function createWindow(showLoading = false) {
       win.loadURL(getEntry());
     });
   }, showLoading ? 5000 : 100);
-
-  win.once('ready-to-show', () => {
-    win.show();
-  });
-
-  win.on('resize', () => {
-    if (!win) return;
-    if (data.maximized) return;
-    data.bounds = {
-      ...data.bounds,
-      ...win.getBounds(),
-    };
-  });
-
-  win.on('move', () => {
-    if (!win) return;
-    if (data.maximized) return;
-    data.bounds = {
-      ...data.bounds,
-      ...win.getPosition(),
-    };
-  });
-
-  win.on('maximize', () => {
-    if (!win) return;
-    data.maximized = true;
-  });
-
-  win.on('unmaximize', () => {
-    if (!win) return;
-    data.maximized = false;
-  });
-
-  win.on('closed', () => {
-    if (!win) return;
-    win = null;
-  });
 }
 
 function createSettingsWindow() {
-  if (settings) {
+  if (settings && !settings.isDestroyed()) {
     settings.show();
     return;
   }
 
-  const size = screen.getPrimaryDisplay().workAreaSize;
   if (!data.settings) data.settings = {};
-  if (!data.settings.bounds) data.settings.bounds = {
-    width: Math.min(size.width, 600),
-    height: Math.min(size.width, 600),
-  };
-
-  // Create the browser window.
-  settings = new BrowserWindow({
-    ...data.settings.bounds,
-    icon: path.join(__dirname, 'icon.png'),
-    autoHideMenuBar: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
-
+  settings = createWindow(data.settings);
   settings.loadFile(path.join(__dirname, 'settings.html'));
-
   settings.once('ready-to-show', () => {
-    if (!settings) return;
-    settings.show();
     settings.webContents.send('update-settings', data);
   });
+}
 
-  settings.on('resize', () => {
-    if (!settings) return;
-    if (data.maximized) return;
-    data.settings.bounds = {
-      ...data.settings.bounds,
-      ...settings.getBounds(),
-    };
-  });
-
-  settings.on('move', () => {
-    if (!settings) return;
-    if (data.settings.maximized) return;
-    data.settings.bounds = {
-      ...data.settings.bounds,
-      ...settings.getPosition(),
-    };
-  });
-
-  settings.on('maximize', () => {
-    if (!settings) return;
-    data.settings.maximized = true;
-  });
-
-  settings.on('unmaximize', () => {
-    if (!settings) return;
-    data.settings.maximized = false;
-  });
-
-  settings.on('closed', () => {
-    if (!settings) return;
-    settings = null;
-  });
+function createLogsWindow() {
+  if (logs && !logs.isDestroyed()) {
+    logs.show();
+    return;
+  }
+  if (!data.logs) data.logs = {};
+  logs = createWindow((data.logs));
+  logs.loadFile(path.join(__dirname, 'logs.html'));
 }
 
 function createTray() {
@@ -237,7 +198,8 @@ function createTray() {
   if (process.platform === 'darwin') icon = icon.resize({width: 32});
   const tray = new Tray(icon);
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show Window', click: () => createWindow(false) },
+    { label: 'Show Window', click: () => createMainWindow(false) },
+    { label: 'Show Logs', click: createLogsWindow },
     { label: 'Settings', click: createSettingsWindow },
     { label: 'Quit', click: shutdown },
   ]);
@@ -265,8 +227,8 @@ function updateSettings(value) {
   writeData();
   dc('down').once('close', () => {
     server = startServer();
-    if (win) {
-      win.once('closed', createWindow)
+    if (win && !win.isDestroyed()) {
+      win.once('closed', createMainWindow)
       win.close();
     }
   });
@@ -274,8 +236,9 @@ function updateSettings(value) {
 
 let firstLoad = false;
 let tray: Tray;
-let win: BrowserWindow | null;
-let settings: BrowserWindow | null;
+let win: BrowserWindow;
+let logs: BrowserWindow;
+let settings: BrowserWindow;
 let server: ChildProcessWithoutNullStreams;
 
 app.on('ready', () => {
@@ -284,7 +247,7 @@ app.on('ready', () => {
   ipcMain.on('update', () => dc('pull'));
   tray = createTray();
   server = startServer();
-  createWindow(true);
+  createMainWindow(true);
 });
 
 app.on('window-all-closed', () => {
@@ -294,7 +257,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (win === null) {
-    createWindow();
+  if (win.isDestroyed()) {
+    createMainWindow();
   }
 });

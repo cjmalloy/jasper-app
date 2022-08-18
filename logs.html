@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <title>Jasper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    #logs {
+      font-family: monospace;
+      white-space: nowrap;
+    }
+  </style>
+  <script>
+    let followLogs = true;
+    window.electronAPI.streamLogs((event, data) => {
+      followLogs = window.scrollY >= (document.body.scrollHeight - window.innerHeight - 20);
+      const withoutColors = data.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      const lines = withoutColors.split(/[\r\n]+/);
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        document.getElementById('logs').append(line);
+        document.getElementById('logs').appendChild(document.createElement('br'));
+      }
+      if (followLogs) {
+        window.scrollTo(0, document.body.scrollHeight);
+      }
+    });
+  </script>
+</head>
+<body id="logs">
+</body>
+</html>
