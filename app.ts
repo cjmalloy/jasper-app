@@ -127,7 +127,7 @@ function createWindow(config: any) {
     if (config.maximized) return;
     config.bounds = {
       ...config.bounds,
-      ...win.getBounds(),
+      ...handle.getBounds(),
     };
   });
 
@@ -136,7 +136,7 @@ function createWindow(config: any) {
     if (config.maximized) return;
     config.bounds = {
       ...config.bounds,
-      ...win.getPosition(),
+      ...handle.getPosition(),
     };
   });
 
