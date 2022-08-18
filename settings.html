@@ -146,6 +146,22 @@
   <button id="pull-button" type="button" onclick="sendCommand('pull')">Pull New Images</button>
   <span id="pull-loading" class="loading">...</span>
   <label>Check for updates and download them if available</label>
+
+  <button id="down-button" type="button" onclick="sendCommand('down')">Stop</button>
+  <span id="down-loading" class="loading">...</span>
+  <label>Stop all servers and database</label>
+
+  <button id="up-button" type="button" onclick="sendCommand('up')">Start</button>
+  <span id="up-loading" class="loading">...</span>
+  <label>Start all servers and database if not already started</label>
+
+  <button id="pause-button" type="button" onclick="sendCommand('pause')">Pause</button>
+  <span id="pause-loading" class="loading">...</span>
+  <label>Pause all servers and database</label>
+
+  <button id="unpause-button" type="button" onclick="sendCommand('unpause')">Unpause</button>
+  <span id="unpause-loading" class="loading">...</span>
+  <label>Unpause all servers and database</label>
 </div>
 </body>
 </html>
