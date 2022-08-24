@@ -111,25 +111,21 @@ function createWindow(config: any) {
     width: size.width * 0.8,
     height: size.height * 0.8,
   };
-
-  // Create the browser window.
   const handle = new BrowserWindow({
     ...config.bounds,
+    icon: path.join(__dirname, 'app.png'),
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
   });
-
   if (config.maximized) {
     handle.maximize();
   }
-
   handle.once('ready-to-show', () => {
     handle.show();
   });
-
   handle.on('resize', () => {
     if (handle.isDestroyed()) return;
     if (config.maximized) return;
@@ -138,7 +134,6 @@ function createWindow(config: any) {
       ...handle.getBounds(),
     };
   });
-
   handle.on('move', () => {
     if (handle.isDestroyed()) return;
     if (config.maximized) return;
@@ -147,12 +142,10 @@ function createWindow(config: any) {
       ...handle.getPosition(),
     };
   });
-
   handle.on('maximize', () => {
     if (handle.isDestroyed()) return;
     config.maximized = true;
   });
-
   handle.on('unmaximize', () => {
     if (handle.isDestroyed()) return;
     config.maximized = false;
