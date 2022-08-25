@@ -27,4 +27,5 @@ services:
     environment:
       JASPER_API: "http://localhost:${JASPER_SERVER_PORT:-8081}"
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
+      CSP_DEFAULT_SRC: "http://localhost:${JASPER_SERVER_PORT:-8081}"
 
