@@ -4,6 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
 
+if (process.platform !== 'win32') {
+  process.env.PATH = process.env.PATH + ':/usr/local/bin';
+}
+
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
@@ -45,7 +49,7 @@ function notify(command: string) {
 }
 
 function dc(command: string) {
-  const dc = spawn('docker', ['compose', '-f', serverConfig, command], {shell: true});
+  const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
   dc.stdout.on('data', data => {
     console.log(`${data}`);
     if (win && !win.isDestroyed() && !firstLoad) {
