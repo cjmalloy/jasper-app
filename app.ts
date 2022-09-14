@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
@@ -163,6 +163,11 @@ function createMainWindow(showLoading = false) {
     return;
   }
   win = createWindow(data);
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    // Open any links with target="_blank" in a browser
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
