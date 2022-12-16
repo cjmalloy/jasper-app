@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Jasper Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="node_modules/jquery/dist/jquery.min.js"></script>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -39,6 +40,9 @@
       overflow: visible;
       animation: fadein 2s ease-in-out 1s;
       animation-iteration-count: infinite;
+    }
+    select {
+      width: 20px;
     }
     @keyframes fadein {
       from {
@@ -98,6 +102,20 @@
       finished(command);
     });
 
+    window.electronAPI.updateImageTags((event, imageTags) => {
+      for (const [key, value] of Object.entries(imageTags)) {
+        if (!value || !value.length) continue;
+        const $select = $(`#${key}`);
+        $select.html('');
+        value.reverse();
+        $select.append($(`<option>latest</option>`));
+        for (const tag of value) {
+          $select.append($(`<option>${tag}</option>`));
+        }
+        $select.val($(`#${key}Version`).val());
+      }
+    });
+
     function save() {
       const settings = {};
       for (const f of fields) {
@@ -139,6 +157,11 @@
   <label for="serverVersion">Server Version</label>
   <div class="versions">
     <input id="serverVersion" type="text">
+    <select id="server" onchange="$('#serverVersion').val($('#server').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.2</option>
+    </select>
     <div title="Check for updates on startup"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
   </div>
 
@@ -154,6 +177,11 @@
   <label for="clientVersion">UI Version</label>
   <div class="versions">
     <input id="clientVersion" type="text">
+    <select id="client" onchange="$('#clientVersion').val($('#client').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.2</option>
+    </select>
     <div title="Check for updates on startup"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
   </div>
 
@@ -166,6 +194,11 @@
   <label for="databaseVersion">Postgres Version</label>
   <div class="versions">
     <input id="databaseVersion" type="text">
+    <select id="database" onchange="$('#databaseVersion').val($('#database').val())">
+      <option>latest</option>
+      <option>14</option>
+      <option>15</option>
+    </select>
     <div title="Check for updates on startup"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
   </div>
 

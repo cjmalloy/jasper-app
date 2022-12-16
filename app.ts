@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { spawn } from 'child_process';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import log from 'electron-log';
@@ -132,6 +133,7 @@ function shutdown() {
 }
 
 function checkUpdates() {
+  _imageTags = null;
   console.log('Jasper App Version: ', app.getVersion());
   console.log(`Auto Update ${data.autoUpdate ? 'on' : 'off'}.`);
   autoUpdater.logger = log;
@@ -223,6 +225,7 @@ function createMainWindow(showLoading = false) {
 function createSettingsWindow() {
   if (settings && !settings.isDestroyed()) {
     settings.show();
+    getImageTags().then(data => settings.webContents.send('image-tags', data));
     return;
   }
 
@@ -237,7 +240,30 @@ function createSettingsWindow() {
   settings.once('ready-to-show', () => {
     data.appVersion = app.getVersion();
     settings.webContents.send('update-settings', data);
+    getImageTags().then(data => settings.webContents.send('image-tags', data));
   });
+}
+
+let _imageTags;
+async function getImageTags() {
+  if (_imageTags) return _imageTags;
+  const tags = {
+    server: [],
+    client: [],
+    database: ['11', '12', '13', '14', '15'],
+  };
+  return ghDockerTags('cjmalloy/jasper')
+      .then(res => tags.server = res.data.tags.filter(t => t.startsWith('v')))
+      .then(() => ghDockerTags('cjmalloy/jasper-ui'))
+      .then(res => tags.client = res.data.tags.filter(t => t.startsWith('v')))
+      .then(() => _imageTags = tags);
+}
+
+function ghDockerTags(repo: string) {
+  return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
+      .catch(err => { console.log('Can\'t get fake login token: ' + repo); throw err })
+      .then(res => axios.get(`https://ghcr.io/v2/${repo}/tags/list`, { headers: { 'Authorization': 'Bearer ' + res.data.token }}))
+      .catch(err => { console.log('Can\'t get tag list ' + repo); throw err });
 }
 
 function createLogsWindow() {
