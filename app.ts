@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { spawn } from 'child_process';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import log from 'electron-log';
@@ -247,23 +247,37 @@ function createSettingsWindow() {
 let _imageTags;
 async function getImageTags() {
   if (_imageTags) return _imageTags;
-  const tags = {
+  const versions = {
     server: [],
     client: [],
     database: ['11', '12', '13', '14', '15'],
   };
   return ghDockerTags('cjmalloy/jasper')
-      .then(res => tags.server = res.data.tags.filter(t => t.startsWith('v')))
+      .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
       .then(() => ghDockerTags('cjmalloy/jasper-ui'))
-      .then(res => tags.client = res.data.tags.filter(t => t.startsWith('v')))
-      .then(() => _imageTags = tags);
+      .then(tags => versions.client = tags.filter(t => t.startsWith('v')))
+      .then(() => _imageTags = versions);
 }
 
 function ghDockerTags(repo: string) {
+  const tags = [];
   return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
       .catch(err => { console.log('Can\'t get fake login token: ' + repo); throw err })
-      .then(res => axios.get(`https://ghcr.io/v2/${repo}/tags/list`, { headers: { 'Authorization': 'Bearer ' + res.data.token }}))
-      .catch(err => { console.log('Can\'t get tag list ' + repo); throw err });
+      .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
+}
+
+function dockerTags(host: string, path: string, token: string, tags = [], page = 0) {
+  return axios.get(host + path, { headers: { 'Authorization': 'Bearer ' + token }})
+      .catch(err => { console.log('Can\'t get tag list ' + path); throw err })
+      .then(res => {
+        tags.push(...res.data.tags)
+        const next = (res.headers as AxiosHeaders).get('link', /<([^>]+)>; rel="next"/);
+        if (next?.length) {
+          return dockerTags(host, next[1], token, tags, page++);
+        } else {
+          return tags;
+        }
+      });
 }
 
 function createLogsWindow() {
