@@ -13,7 +13,8 @@
     "postinstall": "electron-builder install-app-deps",
     "tsc": "tsc -p tsconfig.json",
     "start": "npm run tsc && electron app.js",
-    "build": "npm run tsc && electron-builder build"
+    "build": "npm run tsc && electron-builder build",
+    "ci": "npm run tsc && electron-builder build --publish never"
   },
   "build": {
     "asar": false,
