@@ -143,10 +143,10 @@ function checkUpdates() {
     body: 'Downloading latest Jasper update...'
   }).then(res => {
     if (!res) return;
-    if (res.updateInfo.version === app.getVersion()) return;
+    if (res.updateInfo.version <= app.getVersion()) return;
     tray.setContextMenu(Menu.buildFromTemplate([
       ...contextMenuTemplate,
-      { label: '🌟 Update to ' + res.updateInfo.version, click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall()) },
+      { label: '🌟 Update to v' + res.updateInfo.version, click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall()) },
     ]));
     return res.downloadPromise;
   });
