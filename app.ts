@@ -1,5 +1,7 @@
 import { spawn } from 'child_process';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
+import log from 'electron-log';
+import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
@@ -17,19 +19,33 @@ try {
 }
 catch(e) {
   data = {
-    serverVersion: 'latest',
+    autoUpdate: true,
+    serverVersion: 'v1.2',
+    pullServer: true,
     serverPort: '8081',
     serverProfiles: 'prod,admin,storage,feed-burst,repl-burst',
-    clientVersion: 'latest',
+    clientVersion: 'v1.2',
+    pullClient: true,
     clientPort: '8082',
     clientTitle: 'Jasper',
+    databaseVersion: '14.5',
+    pullDatabase: true,
     dataDir: path.join(app.getPath('userData'), 'data'),
     storageDir: path.join(app.getPath('userData'), 'storage'),
+    showLogsOnStart: false,
   };
 }
 
+const contextMenuTemplate = [
+  { label: 'Show Window', click: () => createMainWindow(false) },
+  { label: 'Show Logs', click: createLogsWindow },
+  { label: 'Settings', click: createSettingsWindow },
+  { label: 'Check for Updates', click: checkUpdates },
+  { label: 'Quit', click: shutdown }
+];
+
 function writeData() {
-  fs.writeFileSync(settingsPath, JSON.stringify(data));
+  fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2));
 }
 
 function getEntry() {
@@ -74,10 +90,14 @@ function dc(command: string) {
 function writeEnv() {
   process.env.JASPER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
+  process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;
   process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
+  process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
   process.env.JASPER_CLIENT_PORT = data.clientPort;
   process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
+  process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
+  process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
   process.env.JASPER_DATA_DIR = data.dataDir;
   process.env.JASPER_STORAGE_DIR = data.storageDir;
@@ -85,7 +105,9 @@ function writeEnv() {
 
 function startServer() {
   writeEnv();
-
+  if (data.showLogsOnStart) {
+    createLogsWindow();
+  }
   return dc('up')
       .once('error', err => {
         dialog.showErrorBox('Docker Compose Missing',
@@ -107,6 +129,24 @@ function shutdown() {
   ]));
   dc('down')
       .once('close', app.quit);
+}
+
+function checkUpdates() {
+  console.log('Jasper App Version: ', app.getVersion());
+  console.log(`Auto Update ${data.autoUpdate ? 'on' : 'off'}.`);
+  autoUpdater.logger = log;
+  autoUpdater.autoDownload = data.autoUpdate;
+  return autoUpdater.checkForUpdatesAndNotify({
+    title: 'Jasper Update Available',
+    body: 'Downloading latest Jasper update...'
+  }).then(res => {
+    if (!res) return;
+    tray.setContextMenu(Menu.buildFromTemplate([
+      ...contextMenuTemplate,
+      { label: '🌟 Update to ' + res.updateInfo.version, click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall()) },
+    ]));
+    return res.downloadPromise;
+  });
 }
 
 function createWindow(config: any) {
@@ -194,6 +234,7 @@ function createSettingsWindow() {
   settings = createWindow(data.settings);
   settings.loadFile(path.join(__dirname, 'settings.html'));
   settings.once('ready-to-show', () => {
+    data.appVersion = app.getVersion();
     settings.webContents.send('update-settings', data);
   });
 }
@@ -212,14 +253,8 @@ function createTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'app.png'));
   if (process.platform === 'darwin') icon = icon.resize({width: 32});
   const tray = new Tray(icon);
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show Window', click: () => createMainWindow(false) },
-    { label: 'Show Logs', click: createLogsWindow },
-    { label: 'Settings', click: createSettingsWindow },
-    { label: 'Quit', click: shutdown },
-  ]);
   tray.setToolTip('Jasper');
-  tray.setContextMenu(contextMenu);
+  tray.setContextMenu(Menu.buildFromTemplate(contextMenuTemplate));
   return tray;
 }
 
@@ -240,13 +275,21 @@ function updateSettings(value) {
   };
   writeEnv();
   writeData();
+  const openWin = win && !win.isDestroyed();
+  if (openWin) win.hide();
   dc('down').once('close', () => {
     startServer();
-    if (win && !win.isDestroyed()) {
+    if (openWin) {
       win.once('closed', createMainWindow)
       win.close();
     }
   });
+}
+
+function patchSettings(name, value) {
+  data[name] = value;
+  writeEnv();
+  writeData();
 }
 
 let firstLoad = false;
@@ -257,10 +300,12 @@ let settings: BrowserWindow;
 
 app.on('ready', () => {
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
+  ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   tray = createTray();
   startServer();
   createMainWindow(true);
+  checkUpdates();
 });
 
 app.on('window-all-closed', () => {

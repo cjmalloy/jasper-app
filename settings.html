@@ -20,6 +20,12 @@
     label, button {
       white-space: nowrap;
     }
+    .versions {
+      display: flex;
+    }
+    .versions > input {
+      flex: 1;
+    }
     .loading {
       display: none;
       pointer-events: none;
@@ -59,20 +65,32 @@
   <script>
     let sender;
     const fields = [
+      'appVersion',
       'serverVersion',
       'serverPort',
       'serverProfiles',
+      'storageDir',
       'clientVersion',
-      'clientPort',
       'clientTitle',
+      'clientPort',
+      'databaseVersion',
       'dataDir',
-      'storageDir'
+    ];
+    const flags = [
+      'autoUpdate',
+      'pullClient',
+      'pullServer',
+      'pullDatabase',
+      'showLogsOnStart',
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
       sender = event.sender;
       for (const f of fields) {
-        document.getElementById(f).value = settings[f] ??'';
+        document.getElementById(f).value = settings[f] ?? '';
+      }
+      for (const f of flags) {
+        document.getElementById(f).checked = settings[f] ?? false;
       }
     });
 
@@ -85,8 +103,15 @@
       for (const f of fields) {
         settings[f] = document.getElementById(f).value;
       }
+      for (const f of flags) {
+        settings[f] = document.getElementById(f).checked;
+      }
       sender.send('settings-value', settings);
       window.close();
+    }
+
+    function patch(f) {
+      sender.send('settings-patch', {name: f, value: document.getElementById(f).checked});
     }
 
     function sendCommand(id) {
@@ -105,29 +130,50 @@
 <h1>Jasper Application Settings</h1>
 <div class="label-column">
 
+  <label for="appVersion">App Version</label>
+  <div class="versions">
+    <input id="appVersion" type="text" disabled>
+    <div title="Check for updates on startup"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
+  </div>
+
   <label for="serverVersion">Server Version</label>
-  <input id="serverVersion" type="text" />
+  <div class="versions">
+    <input id="serverVersion" type="text">
+    <div title="Check for updates on startup"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
+  </div>
 
   <label for="serverPort">Server Port</label>
-  <input id="serverPort" type="text" />
+  <input id="serverPort" type="text">
 
   <label for="serverProfiles">Server Profiles</label>
-  <input id="serverProfiles" type="text" />
+  <input id="serverProfiles" type="text">
 
-  <label for="clientTitle">Client Title</label>
-  <input id="clientTitle" type="text" />
+  <label for="storageDir">Server Storage</label>
+  <input id="storageDir" type="text">
 
-  <label for="clientVersion">Client Version</label>
-  <input id="clientVersion" type="text" />
+  <label for="clientVersion">UI Version</label>
+  <div class="versions">
+    <input id="clientVersion" type="text">
+    <div title="Check for updates on startup"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
+  </div>
 
-  <label for="clientPort">Client Port</label>
-  <input id="clientPort" type="text" />
+  <label for="clientTitle">UI Title</label>
+  <input id="clientTitle" type="text">
 
-  <label for="dataDir">Database Directory</label>
-  <input id="dataDir" type="text" />
+  <label for="clientPort">UI Port</label>
+  <input id="clientPort" type="text">
 
-  <label for="storageDir">Storage & Backups Directory</label>
-  <input id="storageDir" type="text" />
+  <label for="databaseVersion">Postgres Version</label>
+  <div class="versions">
+    <input id="databaseVersion" type="text">
+    <div title="Check for updates on startup"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
+  </div>
+
+  <label for="dataDir">Postgres Directory</label>
+  <input id="dataDir" type="text">
+
+  <label for="showLogsOnStart">Show Logs on Startup</label>
+  <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>
 
   <span><!-- Buttons --></span>
   <div>
@@ -139,7 +185,7 @@
 <h2>Troubleshooting</h2>
 <div class="label-column">
 
-  <button id="restart-button" type="button" onclick="sendCommand('restart')">Restart Server</button>
+  <button id="restart-button" type="button" onclick="sendCommand('restart')">Restart</button>
   <span id="restart-loading" class="loading">...</span>
   <label>Restart the servers and database</label>
 

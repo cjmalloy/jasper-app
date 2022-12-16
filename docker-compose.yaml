@@ -1,6 +1,7 @@
 services:
   web:
     image: "ghcr.io/cjmalloy/jasper:${JASPER_SERVER_VERSION:-latest}"
+    pull_policy: "${JASPER_SERVER_PULL:-missing}"
     ports:
       - "${JASPER_SERVER_PORT:-8081}:8081"
     environment:
@@ -13,7 +14,8 @@ services:
     depends_on:
       - db
   db:
-    image: postgres
+    image: "postgres:${JASPER_DATABASE_VERSION:-14.5}"
+    pull_policy: "${JASPER_DATABASE_PULL:-missing}"
     environment:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
@@ -22,6 +24,7 @@ services:
       - "${JASPER_DATA_DIR:?Must Set Data Dir}:/var/lib/postgresql/data"
   client:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
+    pull_policy: "${JASPER_CLIENT_PULL:-missing}"
     ports:
       - "${JASPER_CLIENT_PORT:-8082}:80"
     environment:
