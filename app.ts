@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders } from 'axios';
 import { spawn } from 'child_process';
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
+import * as crypto from 'crypto';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
@@ -24,7 +25,7 @@ catch(e) {
     serverVersion: 'v1.2',
     pullServer: true,
     serverPort: '8081',
-    serverProfiles: 'prod,admin,storage,feed-burst,repl-burst',
+    serverProfiles: 'prod,jwt,storage,feed-burst,repl-burst',
     clientVersion: 'v1.2',
     pullClient: true,
     clientPort: '8082',
@@ -88,15 +89,44 @@ function dc(command: string) {
   return dc;
 }
 
+function getToken(secret) {
+  const header = {
+    alg: 'HS512',
+    typ: 'JWT'
+  };
+  const payload = {
+    aud: '',
+    sub: '',
+    auth: 'ROLE_ADMIN',
+  };
+  const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
+  const digest = hmac.update(body).digest();
+  return body + '.' + digest.toString('base64url');
+}
+
 function writeEnv() {
+  // DEBUG: Use with profile dev
+  // let key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
+  let key = '';
+  if (data.key) {
+    if (safeStorage.isEncryptionAvailable()) {
+      key = safeStorage.decryptString(Buffer.from(data.key, 'base64'));
+    }
+  } else {
+    key = crypto.generateKeySync('hmac', { length: 512 }).export().toString('base64');
+    data.key = safeStorage.encryptString(key).toString('base64');
+  }
   process.env.JASPER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;
+  process.env.JASPER_SERVER_KEY = key;
   process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
   process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
   process.env.JASPER_CLIENT_PORT = data.clientPort;
   process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
+  process.env.JASPER_CLIENT_TOKEN = getToken(key) ?? '';
   process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
   process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
