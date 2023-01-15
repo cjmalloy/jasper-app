@@ -18,8 +18,7 @@ const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 let data: any = {};
 try {
   data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-}
-catch(e) {
+} catch(e) {
   data = {
     autoUpdate: true,
     serverVersion: 'v1.2',
@@ -290,7 +289,6 @@ async function getImageTags() {
 }
 
 function ghDockerTags(repo: string) {
-  const tags = [];
   return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
       .catch(err => { console.log('Can\'t get fake login token: ' + repo); throw err })
       .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
