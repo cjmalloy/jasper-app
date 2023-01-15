@@ -331,7 +331,7 @@ function wait(ms) {
 }
 
 async function waitFor200(url, firstDelay = 100) {
-  return axios.get(getEntry())
+  return axios.get(url)
       .catch(() => ({ status: 0 }))
       .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
 }
