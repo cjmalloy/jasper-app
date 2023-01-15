@@ -6,7 +6,6 @@ import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as request from 'request';
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
@@ -243,12 +242,12 @@ function createMainWindow(showLoading = false) {
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  waitFor200(getEntry(), () => {
-    waitFor200(getServerHealthCheck(), () => {
+  waitFor200(getEntry(), showLoading ? 5000 : 100)
+    .then(() => waitFor200(getServerHealthCheck()))
+    .then(() => {
       firstLoad = true;
       win.loadURL(getEntry());
     });
-  }, showLoading ? 5000 : 100);
 }
 
 function createSettingsWindow() {
@@ -327,14 +326,14 @@ function createTray() {
   return tray;
 }
 
-function waitFor200(url, cb, firstDelay = 100) {
-  request(getEntry(), (error, response, body) => {
-    if (!error && response.statusCode == 200) {
-      cb();
-    } else {
-      setTimeout(() => waitFor200(url, cb), firstDelay);
-    }
-  });
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function waitFor200(url, firstDelay = 100) {
+  return axios.get(getEntry())
+      .catch(() => ({ status: 0 }))
+      .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
 }
 
 function updateSettings(value) {
