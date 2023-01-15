@@ -324,7 +324,7 @@ function createTray() {
   let icon = nativeImage.createFromPath(path.join(__dirname, 'app.png'));
   if (process.platform === 'darwin') icon = icon.resize({width: 32});
   const tray = new Tray(icon);
-  tray.setToolTip('Jasper');
+  tray.setToolTip(data.clientTitle);
   tray.setContextMenu(Menu.buildFromTemplate(contextMenuTemplate));
   return tray;
 }
