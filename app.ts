@@ -243,7 +243,7 @@ function createMainWindow(showLoading = false) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   waitFor200(getEntry(), showLoading ? 5000 : 100)
-    .then(() => waitFor200(getServerHealthCheck()))
+    .then(() => waitForHealth(getServerHealthCheck()))
     .then(() => {
       firstLoad = true;
       win.loadURL(getEntry());
@@ -334,6 +334,12 @@ async function waitFor200(url, firstDelay = 100) {
   return axios.get(url)
       .catch(() => ({ status: 0 }))
       .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
+}
+
+async function waitForHealth(url, firstDelay = 100) {
+  return axios.get(url)
+      .catch(() => ({ data: {} }))
+      .then(res => res.data.status === 'UP' ? null : wait(firstDelay).then(() => waitForHealth(url, 100)));
 }
 
 function updateSettings(value) {
