@@ -37,11 +37,11 @@ try {
 }
 
 const contextMenuTemplate = [
-  { label: 'Show Window', click: () => createMainWindow(false) },
-  { label: 'Show Logs', click: createLogsWindow },
-  { label: 'Settings', click: createSettingsWindow },
-  { label: 'Check for Updates', click: checkUpdates },
-  { label: 'Quit', click: shutdown }
+  {label: 'Show Window', click: () => createMainWindow(false)},
+  {label: 'Show Logs', click: createLogsWindow},
+  {label: 'Settings', click: createSettingsWindow},
+  {label: 'Check for Updates', click: checkUpdates},
+  {label: 'Quit', click: shutdown}
 ];
 
 function writeData() {
@@ -112,7 +112,7 @@ function writeEnv() {
       key = safeStorage.decryptString(Buffer.from(data.key, 'base64'));
     }
   } else {
-    key = crypto.generateKeySync('hmac', { length: 512 }).export().toString('base64');
+    key = crypto.generateKeySync('hmac', {length: 512}).export().toString('base64');
     data.key = safeStorage.encryptString(key).toString('base64');
   }
   process.env.JASPER_PROFILES = data.serverProfiles ?? '';
@@ -138,13 +138,13 @@ function startServer() {
     createLogsWindow();
   }
   return dc('up')
-      .once('error', err => {
-        dialog.showErrorBox('Docker Compose Missing',
-            'This application requires docker compose to be installed.\n' +
-            'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
-            err);
-        app.quit();
-      });
+    .once('error', err => {
+      dialog.showErrorBox('Docker Compose Missing',
+        'This application requires docker compose to be installed.\n' +
+        'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+        err);
+      app.quit();
+    });
 }
 
 function shutdown() {
@@ -153,11 +153,11 @@ function shutdown() {
     win.close();
   }
   tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Shutting down...' },
-      { label: 'Force Quit', click: app.quit },
+    {label: 'Shutting down...'},
+    {label: 'Force Quit', click: app.quit},
   ]));
   dc('down')
-      .once('close', app.quit);
+    .once('close', app.quit);
 }
 
 function checkUpdates() {
@@ -174,7 +174,10 @@ function checkUpdates() {
     if (res.updateInfo.version <= app.getVersion()) return;
     tray.setContextMenu(Menu.buildFromTemplate([
       ...contextMenuTemplate,
-      { label: '🌟 Update to v' + res.updateInfo.version, click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall()) },
+      {
+        label: '🌟 Update to v' + res.updateInfo.version,
+        click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall())
+      },
     ]));
     return res.downloadPromise;
   });
@@ -234,10 +237,10 @@ function createMainWindow(showLoading = false) {
     return;
   }
   win = createWindow(data);
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  win.webContents.setWindowOpenHandler(({url}) => {
     // Open any links with target="_blank" in a browser
     shell.openExternal(url);
-    return { action: 'deny' };
+    return {action: 'deny'};
   });
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
@@ -281,30 +284,36 @@ async function getImageTags() {
     database: ['11', '12', '13', '14', '15'],
   };
   return ghDockerTags('cjmalloy/jasper')
-      .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
-      .then(() => ghDockerTags('cjmalloy/jasper-ui'))
-      .then(tags => versions.client = tags.filter(t => t.startsWith('v')))
-      .then(() => _imageTags = versions);
+    .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
+    .then(() => ghDockerTags('cjmalloy/jasper-ui'))
+    .then(tags => versions.client = tags.filter(t => t.startsWith('v')))
+    .then(() => _imageTags = versions);
 }
 
 function ghDockerTags(repo: string) {
   return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
-      .catch(err => { console.log('Can\'t get fake login token: ' + repo); throw err })
-      .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
+    .catch(err => {
+      console.log('Can\'t get fake login token: ' + repo);
+      throw err
+    })
+    .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
 }
 
 function dockerTags(host: string, path: string, token: string, tags = [], page = 0) {
-  return axios.get(host + path, { headers: { 'Authorization': 'Bearer ' + token }})
-      .catch(err => { console.log('Can\'t get tag list ' + path); throw err })
-      .then(res => {
-        tags.push(...res.data.tags)
-        const next = (res.headers as AxiosHeaders).get('link', /<([^>]+)>; rel="next"/);
-        if (next?.length) {
-          return dockerTags(host, next[1], token, tags, page++);
-        } else {
-          return tags;
-        }
-      });
+  return axios.get(host + path, {headers: {'Authorization': 'Bearer ' + token}})
+    .catch(err => {
+      console.log('Can\'t get tag list ' + path);
+      throw err
+    })
+    .then(res => {
+      tags.push(...res.data.tags)
+      const next = (res.headers as AxiosHeaders).get('link', /<([^>]+)>; rel="next"/);
+      if (next?.length) {
+        return dockerTags(host, next[1], token, tags, page++);
+      } else {
+        return tags;
+      }
+    });
 }
 
 function createLogsWindow() {
@@ -332,14 +341,14 @@ function wait(ms) {
 
 async function waitFor200(url, firstDelay = 100) {
   return axios.get(url)
-      .catch(() => ({ status: 0 }))
-      .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
+    .catch(() => ({status: 0}))
+    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
 }
 
 async function waitForHealth(url, firstDelay = 100) {
   return axios.get(url)
-      .catch(() => ({ data: {} }))
-      .then(res => res.data.status === 'UP' ? null : wait(firstDelay).then(() => waitForHealth(url, 100)));
+    .catch(() => ({data: {}}))
+    .then(res => res.data.status === 'UP' ? null : wait(firstDelay).then(() => waitForHealth(url, 100)));
 }
 
 function updateSettings(value) {
