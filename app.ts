@@ -249,7 +249,9 @@ function createMainWindow(showLoading = false) {
     .then(() => waitForHealth(getServerHealthCheck()))
     .then(() => {
       firstLoad = true;
-      win.loadURL(getEntry());
+      if (win && !win.isDestroyed()) {
+        win.loadURL(getEntry());
+      }
     });
 }
 
