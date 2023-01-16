@@ -245,7 +245,7 @@ function createMainWindow(showLoading = false) {
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  waitFor200(getEntry(), showLoading ? 5000 : 100)
+  return waitFor200(getEntry(), showLoading ? 5000 : 100)
     .then(() => waitForHealth(getServerHealthCheck()))
     .then(() => {
       firstLoad = true;
@@ -389,8 +389,8 @@ app.on('ready', () => {
   ipcMain.on('command', (_event, value) => notify(value));
   tray = createTray();
   startServer();
-  createMainWindow(true);
-  checkUpdates();
+  createMainWindow(true)
+    .then(() => checkUpdates());
 });
 
 app.on('window-all-closed', () => {
