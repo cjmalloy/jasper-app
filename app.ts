@@ -176,7 +176,14 @@ function checkUpdates() {
       ...contextMenuTemplate,
       {
         label: '🌟 Update to v' + res.updateInfo.version,
-        click: () => autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall())
+        click: () => {
+          if (process.platform === 'darwin') {
+            // Auto update will not work on mac until we get signing keys
+            shell.openExternal('https://github.com/cjmalloy/jasper-app/releases/latest');
+          } else {
+            autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall())
+          }
+        }
       },
     ]));
     return res.downloadPromise;
@@ -238,7 +245,7 @@ function createMainWindow(showLoading = false) {
   }
   win = createWindow(data);
   win.webContents.setWindowOpenHandler(({url}) => {
-    // Open any links with target="_blank" in a browser
+    // Open any links in a browser
     shell.openExternal(url);
     return {action: 'deny'};
   });
