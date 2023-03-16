@@ -1,5 +1,6 @@
 # Jasper Desktop App
-Desktop app for Jasper KMS. Uses electron to wrap a docker compose config.
+Desktop app for Jasper KMS. Uses electron to wrap a docker compose config.  
+[Downloads](https://github.com/cjmalloy/jasper-app/releases/latest)
 
 ## Prerequisites
 Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/
