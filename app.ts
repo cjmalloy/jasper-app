@@ -396,6 +396,7 @@ app.on('ready', () => {
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
+  ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
   tray = createTray();
   startServer();
   createMainWindow(true)

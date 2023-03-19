@@ -159,6 +159,10 @@
       sender.send('settings-patch', {name: f, value: $('#' + f).checked});
     }
 
+    function openDir(dir) {
+      sender.send('open-dir', dir);
+    }
+
     function sendCommand(id, ...args) {
       sender.send('command', id, args);
       $(`#${id}-button`).css('display', 'none');
@@ -223,7 +227,10 @@
   <input id="serverProfiles" type="text">
 
   <label for="storageDir">Server Storage</label>
-  <input id="storageDir" type="text">
+  <div class="form-array">
+    <input id="storageDir" type="text">
+    <button type="button" onclick="openDir($('#storageDir').val())">📂️</button>
+  </div>
 
   <label for="clientVersion">UI Version</label>
   <div class="form-array">
@@ -254,7 +261,11 @@
   </div>
 
   <label for="dataDir">Postgres Directory</label>
-  <input id="dataDir" type="text">
+  <div class="form-array">
+    <input id="dataDir" type="text">
+    <button type="button" onclick="openDir($('#dataDir').val())">📂️</button>
+  </div>
+
 
   <label for="showLogsOnStart">Show Logs on Startup</label>
   <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>
