@@ -18,14 +18,28 @@
       grid-gap: 8px;
       grid-template-columns: min-content auto;
     }
-    label, button {
+    label, button, .cb span {
       white-space: nowrap;
     }
-    .versions {
+    input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+    }
+    .form-array {
       display: flex;
     }
-    .versions > input {
+    .form-array *:not(:first-child) {
+      margin-left: 3px;
+    }
+    .form-array > input {
       flex: 1;
+    }
+    .form-array > input + select {
+      margin-left: -3px !important;
+    }
+    .au > label {
+      vertical-align: top;
+      font-size: 18px;
     }
     .loading {
       display: none;
@@ -91,10 +105,10 @@
     window.electronAPI.handleSettings((event, settings) => {
       sender = event.sender;
       for (const f of fields) {
-        document.getElementById(f).value = settings[f] ?? '';
+        $('#' + f).val(settings[f] ?? '');
       }
       for (const f of flags) {
-        document.getElementById(f).checked = settings[f] ?? false;
+        $('#' + f).prop('checked', settings[f] ?? false);
       }
     });
 
@@ -119,29 +133,34 @@
     function save() {
       const settings = {};
       for (const f of fields) {
-        settings[f] = document.getElementById(f).value;
+        settings[f] = $('#' + f).val();
       }
       for (const f of flags) {
-        settings[f] = document.getElementById(f).checked;
+        settings[f] = $('#' + f).prop('checked');
       }
       sender.send('settings-value', settings);
       window.close();
     }
 
     function patch(f) {
-      sender.send('settings-patch', {name: f, value: document.getElementById(f).checked});
+      sender.send('settings-patch', {name: f, value: $('#' + f).checked});
     }
 
-    function sendCommand(id) {
-      sender.send('command', id);
-      document.getElementById(id + '-button').style.display = 'none';
-      document.getElementById(id + '-loading').style.display = 'block';
+    function sendCommand(id, ...args) {
+      sender.send('command', id, args);
+      $(`#${id}-button`).css('display', 'none');
+      $(`#${id}-loading`).css('display', 'block');
     }
 
     function finished(id) {
-      document.getElementById(id + '-button').style.display = 'block';
-      document.getElementById(id + '-loading').style.display = 'none';
+      $(`#${id}-button`).css('display', 'block');
+      $(`#${id}-loading`).css('display', 'none');
     }
+    window.onload = () => {
+      $('input')
+        .focus(e => $(e.currentTarget).css('z-index', 1))
+        .blur(e => $(e.currentTarget).css('z-index', ''));
+    };
   </script>
 </head>
 <body>
@@ -149,20 +168,20 @@
 <div class="label-column">
 
   <label for="appVersion">App Version</label>
-  <div class="versions">
+  <div class="form-array">
     <input id="appVersion" type="text" disabled>
-    <div title="Check for updates on startup"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
+    <div title="Check for updates on startup" class="au"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
   </div>
 
   <label for="serverVersion">Server Version</label>
-  <div class="versions">
+  <div class="form-array">
     <input id="serverVersion" type="text">
     <select id="server" onchange="$('#serverVersion').val($('#server').val())">
       <option>latest</option>
       <option>v1</option>
       <option>v1.2</option>
     </select>
-    <div title="Check for updates on startup"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
+    <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
   </div>
 
   <label for="serverPort">Server Port</label>
@@ -175,14 +194,14 @@
   <input id="storageDir" type="text">
 
   <label for="clientVersion">UI Version</label>
-  <div class="versions">
+  <div class="form-array">
     <input id="clientVersion" type="text">
     <select id="client" onchange="$('#clientVersion').val($('#client').val())">
       <option>latest</option>
       <option>v1</option>
       <option>v1.2</option>
     </select>
-    <div title="Check for updates on startup"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
+    <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
   </div>
 
   <label for="clientTitle">UI Title</label>
@@ -192,14 +211,14 @@
   <input id="clientPort" type="text">
 
   <label for="databaseVersion">Postgres Version</label>
-  <div class="versions">
+  <div class="form-array">
     <input id="databaseVersion" type="text">
     <select id="database" onchange="$('#databaseVersion').val($('#database').val())">
       <option>latest</option>
       <option>14</option>
       <option>15</option>
     </select>
-    <div title="Check for updates on startup"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
+    <div title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
   </div>
 
   <label for="dataDir">Postgres Directory</label>
