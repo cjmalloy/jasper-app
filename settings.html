@@ -94,6 +94,13 @@
       'databaseVersion',
       'dataDir',
     ];
+    const profiles = [
+      'dev',
+      'prod',
+      'feed-burst',
+      'push-burst',
+      'pull-burst',
+    ];
     const flags = [
       'autoUpdate',
       'pullClient',
@@ -104,6 +111,12 @@
 
     window.electronAPI.handleSettings((event, settings) => {
       sender = event.sender;
+      if (settings.serverProfiles) {
+        const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
+        for (const p of profiles) {
+          $(`#serverProfiles_${p}`).prop('checked', activeProfiles.includes(p));
+        }
+      }
       for (const f of fields) {
         $('#' + f).val(settings[f] ?? '');
       }
@@ -156,6 +169,14 @@
       $(`#${id}-button`).css('display', 'block');
       $(`#${id}-loading`).css('display', 'none');
     }
+
+    function updateProfiles() {
+      const activeProfiles = ['storage', 'jwt'];
+      for (const p of profiles) {
+        if ($(`#serverProfiles_${p}`).prop('checked')) activeProfiles.push(p)
+      }
+      $('#serverProfiles').val(activeProfiles.join(','));
+    }
     window.onload = () => {
       $('input')
         .focus(e => $(e.currentTarget).css('z-index', 1))
@@ -188,6 +209,17 @@
   <input id="serverPort" type="text">
 
   <label for="serverProfiles">Server Profiles</label>
+  <div class="cb">
+    <div>
+      <input type="radio" id="serverProfiles_prod" name="env" value="prod" onclick="updateProfiles()"><label for="serverProfiles_prod">Prod</label>
+      <input type="radio" id="serverProfiles_dev" name="env" value="dev" onclick="updateProfiles()"><label for="serverProfiles_dev">Dev</label>
+    </div>
+    <span><input type="checkbox" id="serverProfiles_feed-burst" onclick="updateProfiles()"><label for="serverProfiles_feed-burst">Feeds</label></span>
+    <span><input type="checkbox" id="serverProfiles_pull-burst" onclick="updateProfiles()"><label for="serverProfiles_pull-burst">Pull Remotes</label></span>
+    <span><input type="checkbox" id="serverProfiles_push-burst" onclick="updateProfiles()"><label for="serverProfiles_push-burst">Push Remotes</label></span>
+  </div>
+
+  <span></span>
   <input id="serverProfiles" type="text">
 
   <label for="storageDir">Server Storage</label>
