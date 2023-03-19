@@ -263,11 +263,6 @@ function createMainWindow(showLoading = false) {
 }
 
 function createSettingsWindow() {
-  if (settings && !settings.isDestroyed()) {
-    settings.show();
-    getImageTags().then(data => settings.webContents.send('image-tags', data));
-    return;
-  }
 
   if (!data.settings) data.settings = {
     bounds: {
@@ -275,6 +270,13 @@ function createSettingsWindow() {
       height: 620,
     }
   };
+  if (settings && !settings.isDestroyed()) {
+    settings.show();
+    data.appVersion = app.getVersion();
+    settings.webContents.send('update-settings', data);
+    getImageTags().then(data => settings.webContents.send('image-tags', data));
+    return;
+  }
   settings = createWindow(data.settings);
   settings.loadFile(path.join(__dirname, 'settings.html'));
   settings.once('ready-to-show', () => {
