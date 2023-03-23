@@ -83,6 +83,7 @@
   <script>
     let sender;
     const fields = [
+      'userTag',
       'appVersion',
       'serverVersion',
       'serverPort',
@@ -191,6 +192,9 @@
 <body>
 <h1>Jasper Application Settings</h1>
 <div class="label-column">
+
+  <label for="userTag">User Tag</label>
+  <input id="userTag" type="text">
 
   <label for="appVersion">App Version</label>
   <div class="form-array">

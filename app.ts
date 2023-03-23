@@ -19,6 +19,7 @@ try {
   data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
 } catch(e) {
   data = {
+    userTag: '+user',
     autoUpdate: true,
     serverVersion: 'v1.2',
     pullServer: true,
@@ -87,14 +88,14 @@ function dc(command: string) {
   return dc;
 }
 
-function getToken(secret) {
+function getToken(userTag, secret) {
   const header = {
     alg: 'HS512',
     typ: 'JWT'
   };
   const payload = {
     aud: '',
-    sub: '',
+    sub: userTag,
     auth: 'ROLE_ADMIN',
   };
   const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -124,7 +125,7 @@ function writeEnv() {
   process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
   process.env.JASPER_CLIENT_PORT = data.clientPort;
   process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
-  process.env.JASPER_CLIENT_TOKEN = getToken(key) ?? '';
+  process.env.JASPER_CLIENT_TOKEN = getToken(data.userTag || '', key) ?? '';
   process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
   process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
