@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "Desktop app for Jasper KMS",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "axios": "^1.2.6",
+    "electron-context-menu": "^3.6.1",
     "electron-log": "^4.4.8",
     "electron-updater": "^5.3.0",
     "jquery": "^3.6.3"

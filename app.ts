@@ -6,10 +6,15 @@ import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as contextMenu from "electron-context-menu";
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
 }
+
+contextMenu({
+  showSaveImageAs: true
+});
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -203,6 +208,7 @@ function createWindow(config: any) {
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
+      spellcheck: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
