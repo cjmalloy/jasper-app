@@ -264,7 +264,13 @@ function createMainWindow(showLoading = false) {
     .then(() => {
       firstLoad = true;
       if (win && !win.isDestroyed()) {
-        win.loadURL(getEntry());
+        if (showLoading) {
+          win.close();
+          win.destroy();
+          return createMainWindow();
+        } else {
+          return win.loadURL(getEntry());
+        }
       }
     });
 }
