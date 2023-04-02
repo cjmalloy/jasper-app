@@ -29,7 +29,7 @@ try {
     serverVersion: 'v1.2',
     pullServer: true,
     serverPort: '8081',
-    serverProfiles: 'prod,jwt,storage,feed-burst,repl-burst',
+    serverProfiles: 'prod,jwt,storage,feed-burst,push-burst,pull-burst',
     clientVersion: 'v1.2',
     pullClient: true,
     clientPort: '8082',
@@ -121,7 +121,7 @@ function writeEnv() {
     key = crypto.generateKeySync('hmac', {length: 512}).export().toString('base64');
     data.key = safeStorage.encryptString(key).toString('base64');
   }
-  process.env.JASPER_PROFILES = data.serverProfiles ?? '';
+  process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;
