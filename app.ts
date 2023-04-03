@@ -263,14 +263,14 @@ function createMainWindow(showLoading = false) {
     .then(() => waitForHealth(getServerHealthCheck()))
     .then(() => {
       firstLoad = true;
-      if (win && !win.isDestroyed()) {
-        if (showLoading) {
+      if (showLoading) {
+        if (win && !win.isDestroyed()) {
           win.close();
           win.destroy();
-          return createMainWindow();
-        } else {
-          return win.loadURL(getEntry());
         }
+        return createMainWindow();
+      } else {
+        return win.loadURL(getEntry());
       }
     });
 }
