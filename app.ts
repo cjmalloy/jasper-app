@@ -13,7 +13,8 @@ if (process.platform !== 'win32') {
 }
 
 contextMenu({
-  showSaveImageAs: true
+  showSaveImageAs: true,
+  showInspectElement: true,
 });
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
