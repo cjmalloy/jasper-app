@@ -268,6 +268,7 @@ function createMainWindow(showLoading = false) {
         if (win && !win.isDestroyed()) {
           win.close();
           win.destroy();
+          win = null;
         }
         return createMainWindow();
       } else {
