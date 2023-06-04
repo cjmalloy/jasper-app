@@ -2,11 +2,11 @@ import axios, { AxiosHeaders } from 'axios';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
-import log from 'electron-log';
+import * as contextMenu from 'electron-context-menu';
+import * as log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as contextMenu from "electron-context-menu";
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
@@ -406,6 +406,11 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
+  if (process.platform === 'darwin') {
+    const menuTemplate = [{}];
+    const menu = Menu.buildFromTemplate(menuTemplate);
+    Menu.setApplicationMenu(menu);
+  }
   tray = createTray();
   startServer();
   createMainWindow(true)
