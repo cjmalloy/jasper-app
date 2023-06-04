@@ -254,6 +254,7 @@ function createMainWindow(showLoading = false) {
   win = createWindow(data);
   win.webContents.setWindowOpenHandler(({url}) => {
     // Open any links in a browser
+    // TODO: Not working for links in markdown
     shell.openExternal(url);
     return {action: 'deny'};
   });
