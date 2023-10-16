@@ -406,11 +406,6 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
-  if (process.platform === 'darwin') {
-    const menuTemplate = [{}];
-    const menu = Menu.buildFromTemplate(menuTemplate);
-    Menu.setApplicationMenu(menu);
-  }
   tray = createTray();
   startServer();
   createMainWindow(true)
