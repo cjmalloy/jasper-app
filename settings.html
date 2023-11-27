@@ -96,8 +96,8 @@
       'dataDir',
     ];
     const profiles = [
-      'dev',
       'prod',
+      'debug',
       'feed-burst',
       'push-burst',
       'pull-burst',
@@ -176,7 +176,7 @@
     }
 
     function updateProfiles() {
-      const activeProfiles = ['storage', 'jwt'];
+      const activeProfiles = ['prod', 'storage', 'jwt'];
       for (const p of profiles) {
         if ($(`#serverProfiles_${p}`).prop('checked')) activeProfiles.push(p)
       }
@@ -218,13 +218,10 @@
 
   <label for="serverProfiles">Server Profiles</label>
   <div class="cb">
-    <div>
-      <input type="radio" id="serverProfiles_prod" name="env" value="prod" onclick="updateProfiles()"><label for="serverProfiles_prod">Prod</label>
-      <input type="radio" id="serverProfiles_dev" name="env" value="dev" onclick="updateProfiles()"><label for="serverProfiles_dev">Dev</label>
-    </div>
     <span><input type="checkbox" id="serverProfiles_feed-burst" onclick="updateProfiles()"><label for="serverProfiles_feed-burst">Feeds</label></span>
     <span><input type="checkbox" id="serverProfiles_pull-burst" onclick="updateProfiles()"><label for="serverProfiles_pull-burst">Pull Remotes</label></span>
     <span><input type="checkbox" id="serverProfiles_push-burst" onclick="updateProfiles()"><label for="serverProfiles_push-burst">Push Remotes</label></span>
+    <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
   </div>
 
   <span></span>
