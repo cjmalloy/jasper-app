@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.42",
+  "version": "1.0.44",
   "description": "Desktop app for Jasper KMS",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -37,9 +37,13 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": [
-        "dmg"
-      ]
+      "target": {
+        "target": "dmg",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
     },
     "linux": {
       "category": "Office",
