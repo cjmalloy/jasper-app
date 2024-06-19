@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.46",
+  "version": "1.0.48",
   "description": "Desktop app for Jasper KMS",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -40,8 +40,7 @@
       "target": {
         "target": "dmg",
         "arch": [
-          "x64",
-          "arm64"
+          "x64"
         ]
       }
     },
