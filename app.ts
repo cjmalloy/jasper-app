@@ -106,22 +106,14 @@ function getToken(userTag, secret) {
   };
   const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
   const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
-  const digest = hmac.update(body).digest();
-  return body + '.' + digest.toString('base64url');
+  const digest = hmac.update(body).digest('base64url');
+  return body + '.' + digest;
 }
 
 function writeEnv() {
   // DEBUG: Use with profile dev
-  // let key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
-  let key = '';
-  if (data.key) {
-    if (safeStorage.isEncryptionAvailable()) {
-      key = safeStorage.decryptString(Buffer.from(data.key, 'base64'));
-    }
-  } else {
-    key = crypto.generateKeySync('hmac', {length: 512}).export().toString('base64');
-    data.key = safeStorage.encryptString(key).toString('base64');
-  }
+  // const key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
+  const key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
   process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
