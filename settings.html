@@ -98,9 +98,9 @@
     const profiles = [
       'prod',
       'debug',
-      'feed-burst',
-      'push-burst',
-      'pull-burst',
+      'ai',
+      'recycler',
+      'preload',
     ];
     const flags = [
       'autoUpdate',
@@ -218,9 +218,9 @@
 
   <label for="serverProfiles">Server Profiles</label>
   <div class="cb">
-    <span><input type="checkbox" id="serverProfiles_feed-burst" onclick="updateProfiles()"><label for="serverProfiles_feed-burst">Feeds</label></span>
-    <span><input type="checkbox" id="serverProfiles_pull-burst" onclick="updateProfiles()"><label for="serverProfiles_pull-burst">Pull Remotes</label></span>
-    <span><input type="checkbox" id="serverProfiles_push-burst" onclick="updateProfiles()"><label for="serverProfiles_push-burst">Push Remotes</label></span>
+    <span><input type="checkbox" id="serverProfiles_ai" onclick="updateProfiles()"><label for="serverProfiles_ai">AI</label></span>
+    <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler">Recycler</label></span>
+    <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload">Preload</label></span>
     <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
   </div>
 
