@@ -8,7 +8,8 @@
     "name": "Chris Malloy",
     "email": "cjmalloy@gmail.com"
   },
-  "main": "app.js",
+  "exports": "./app.js",
+  "type": "module",
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
     "tsc": "tsc -p tsconfig.json",
