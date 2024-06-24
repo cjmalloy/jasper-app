@@ -152,11 +152,17 @@ function shutdown() {
     win.close();
   }
   tray.setContextMenu(Menu.buildFromTemplate([
-    {label: 'Shutting down...'},
-    {label: 'Force Quit', click: app.quit},
+    { label: 'Shutting down...' },
+    { label: 'Force Quit', click: forceQuit },
   ]));
   dc('down')
-    .once('close', app.quit);
+    .once('close', forceQuit);
+}
+
+let forceQuitting = false;
+function forceQuit() {
+  forceQuitting = true;
+  app.quit();
 }
 
 function checkUpdates() {
@@ -235,6 +241,13 @@ function createWindow(config: any) {
     if (handle.isDestroyed()) return;
     config.maximized = false;
   });
+  handle.on('close', event => {
+    if (!forceQuitting) {
+      event.preventDefault()
+      if (handle.isDestroyed()) return;
+      handle.hide();
+    }
+  });
   return handle;
 }
 
@@ -264,7 +277,6 @@ function createMainWindow(showLoading = false) {
 }
 
 function createSettingsWindow() {
-
   if (!data.settings) data.settings = {
     bounds: {
       width: 540,
@@ -405,14 +417,13 @@ app.on('ready', () => {
     .then(() => checkUpdates());
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform === 'darwin') {
-    app.dock.hide();
-  }
+app.on('activate', () => {
+  createMainWindow();
 });
 
-app.on('activate', () => {
-  if (win.isDestroyed()) {
-    createMainWindow();
+app.on('before-quit', event => {
+  if (!forceQuitting) {
+    event.preventDefault();
+    shutdown();
   }
 });
