@@ -81,7 +81,6 @@
     }
   </style>
   <script>
-    let sender;
     const fields = [
       'userTag',
       'appVersion',
@@ -111,7 +110,6 @@
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
-      sender = event.sender;
       if (settings.serverProfiles) {
         const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
         for (const p of profiles) {
@@ -152,20 +150,20 @@
       for (const f of flags) {
         settings[f] = $('#' + f).prop('checked');
       }
-      sender.send('settings-value', settings);
+      window.electronAPI.saveSettings(settings);
       window.close();
     }
 
     function patch(f) {
-      sender.send('settings-patch', {name: f, value: $('#' + f).checked});
+      window.electronAPI.patchSettings({name: f, value: $('#' + f).checked});
     }
 
     function openDir(dir) {
-      sender.send('open-dir', dir);
+      window.electronAPI.openDir(dir);
     }
 
     function sendCommand(id, ...args) {
-      sender.send('command', id, args);
+      window.electronAPI.command(id, args);
       $(`#${id}-button`).css('display', 'none');
       $(`#${id}-loading`).css('display', 'block');
     }
@@ -183,6 +181,7 @@
       $('#serverProfiles').val(activeProfiles.join(','));
     }
     window.onload = () => {
+      window.electronAPI.fetchSettings();
       $('input')
         .focus(e => $(e.currentTarget).css('z-index', 1))
         .blur(e => $(e.currentTarget).css('z-index', ''));

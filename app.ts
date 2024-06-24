@@ -394,6 +394,7 @@ let logs: BrowserWindow;
 let settings: BrowserWindow;
 
 app.on('ready', () => {
+  ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
