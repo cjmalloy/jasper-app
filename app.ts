@@ -30,7 +30,7 @@ try {
     serverVersion: 'v1.2',
     pullServer: true,
     serverPort: '8081',
-    serverProfiles: 'prod,jwt,storage,ai',
+    serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
     clientVersion: 'v1.2',
     pullClient: true,
     clientPort: '8082',

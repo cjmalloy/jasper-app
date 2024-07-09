@@ -97,7 +97,9 @@
     const profiles = [
       'prod',
       'debug',
-      'ai',
+      'scripts',
+      'proxy',
+      'file-cache',
       'recycler',
       'preload',
     ];
@@ -217,7 +219,9 @@
 
   <label for="serverProfiles">Server Profiles</label>
   <div class="cb">
-    <span><input type="checkbox" id="serverProfiles_ai" onclick="updateProfiles()"><label for="serverProfiles_ai">AI</label></span>
+    <span><input type="checkbox" id="serverProfiles_scripts" onclick="updateProfiles()"><label for="serverProfiles_scripts">Server Scripts</label></span>
+    <span><input type="checkbox" id="serverProfiles_proxy" onclick="updateProfiles()"><label for="serverProfiles_proxy">Proxy</label></span>
+    <span><input type="checkbox" id="serverProfiles_file-cache" onclick="updateProfiles()"><label for="serverProfiles_file-cache">File Cache</label></span>
     <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler">Recycler</label></span>
     <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload">Preload</label></span>
     <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
