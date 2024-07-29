@@ -57,7 +57,7 @@
     "electron-builder": "^24.13.3",
     "electron-debug": "^4.0.0",
     "electron-reloader": "^1.2.3",
-    "typescript": "~5.5.2",
+    "typescript": "~5.5.4",
     "wait-on": "^7.2.0"
   },
   "dependencies": {
