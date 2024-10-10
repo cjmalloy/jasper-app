@@ -147,6 +147,7 @@ function startServer() {
 }
 
 function shutdown() {
+  console.log('Shutdown');
   writeData();
   if (win && !win.isDestroyed()) {
     win.close();
@@ -161,6 +162,7 @@ function shutdown() {
 
 let forceQuitting = false;
 function forceQuit() {
+  console.log('Force Quit');
   forceQuitting = true;
   app.quit();
 }
@@ -422,6 +424,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', event => {
+  console.log('Quit');
   if (!forceQuitting) {
     event.preventDefault();
     shutdown();
