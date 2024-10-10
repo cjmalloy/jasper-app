@@ -29,7 +29,7 @@ services:
     depends_on:
       - db
   db:
-    image: "postgres:${JASPER_DATABASE_VERSION:-15}"
+    image: "postgres:${JASPER_DATABASE_VERSION:-16}"
     pull_policy: "${JASPER_DATABASE_PULL:-missing}"
     restart: unless-stopped
     environment:

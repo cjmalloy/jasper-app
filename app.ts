@@ -36,7 +36,7 @@ try {
     pullClient: true,
     clientPort: '8082',
     clientTitle: 'Jasper',
-    databaseVersion: '14.5',
+    databaseVersion: '16',
     pullDatabase: true,
     dataDir: path.join(app.getPath('userData'), 'data'),
     storageDir: path.join(app.getPath('userData'), 'storage'),
