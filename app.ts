@@ -7,6 +7,7 @@ import * as log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import * as fs from 'fs';
 import * as path from 'path';
+import AnsiUp from 'ansi_up'
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
@@ -71,26 +72,23 @@ function notify(command: string) {
   });
 }
 
+const ansi = new AnsiUp();
 function dc(command: string) {
   const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
-  dc.stdout.on('data', data => {
+  const sendLogs = data => {
     console.log(`${data}`);
+    const log = ansi.ansi_to_html(`${data}`)
+      .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+      .replace(/  /g, ' &nbsp;');
     if (win && !win.isDestroyed() && !firstLoad) {
-      win.webContents.send('stream-logs', `${data}`);
+      win.webContents.send('stream-logs', log);
     }
     if (logs && !logs.isDestroyed()) {
-      logs.webContents.send('stream-logs', `${data}`);
+      logs.webContents.send('stream-logs', log);
     }
-  });
-  dc.stderr.on('data', data => {
-    console.log(`${data}`);
-    if (win && !win.isDestroyed() && !firstLoad) {
-      win.webContents.send('stream-logs', `${data}`);
-    }
-    if (logs && !logs.isDestroyed()) {
-      logs.webContents.send('stream-logs', `${data}`);
-    }
-  });
+  };
+  dc.stdout.on('data', sendLogs);
+  dc.stderr.on('data', sendLogs);
   return dc;
 }
 
