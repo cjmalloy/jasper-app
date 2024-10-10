@@ -47,6 +47,7 @@ try {
 const contextMenuTemplate = [
   {label: 'Show Window', click: () => createMainWindow(false)},
   {label: 'Show Logs', click: createLogsWindow},
+  {label: 'Show Backups', click: () => shell.openPath(path.join(data.storageDir, 'default/backups'))},
   {label: 'Settings', click: createSettingsWindow},
   {label: 'Check for Updates', click: checkUpdates},
   {label: 'Quit', click: shutdown}
