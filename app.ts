@@ -185,7 +185,8 @@ function checkUpdates() {
             // Auto update will not work on mac until we get signing keys
             shell.openExternal('https://github.com/cjmalloy/jasper-app/releases/latest');
           } else {
-            autoUpdater.downloadUpdate().then(() => autoUpdater.quitAndInstall())
+            autoUpdater.downloadUpdate()
+              .then(() => dc('down').once('close', () => autoUpdater.quitAndInstall()));
           }
         }
       },
