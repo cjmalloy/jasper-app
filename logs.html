@@ -20,15 +20,18 @@
   </style>
   <script>
     let followLogs = true;
+    function div(text) {
+      const div = document.createElement('div');
+      div.setHTMLUnsafe(text);
+      return div;
+    }
     window.electronAPI.streamLogs((event, data) => {
       followLogs = window.scrollY >= (document.body.scrollHeight - window.innerHeight - 20);
-      const withoutColors = data.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-      const lines = withoutColors.split(/[\r\n]+/);
+      const lines = data.split(/[\r\n]+/);
       for (let line of lines) {
         line = line.trim();
         if (!line) continue;
-        document.getElementById('logs').append(line);
-        document.getElementById('logs').appendChild(document.createElement('br'));
+        document.getElementById('logs').appendChild(div(line));
       }
       if (followLogs) {
         window.scrollTo(0, document.body.scrollHeight);
