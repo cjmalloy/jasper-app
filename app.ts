@@ -28,11 +28,11 @@ try {
   data = {
     userTag: '+user',
     autoUpdate: true,
-    serverVersion: 'v1.2',
+    serverVersion: 'v1.3',
     pullServer: true,
     serverPort: '8081',
     serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
-    clientVersion: 'v1.2',
+    clientVersion: 'v1.3',
     pullClient: true,
     clientPort: '8082',
     clientTitle: 'Jasper',
