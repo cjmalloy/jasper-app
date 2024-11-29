@@ -6,8 +6,14 @@ Desktop app for [Jasper KM](https://github.com/cjmalloy/jasper). Uses electron t
 ## Prerequisites
 Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/
 
+### macOs 15
+To allow on macOs 15 you must remove the quarantine flag:
+```shell
+xattr -d com.apple.quarantine /Applications/Jasper.app
+```
+
 ## Troubleshooting
-If the docker daemon is not running the app will not start.
+If Docker is not running the app will not start.
 
 ## Developing
 This project uses npm and typescript. Run `npm install` to install dependencies.
