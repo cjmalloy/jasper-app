@@ -77,8 +77,9 @@ const ansi = new AnsiUp();
 function dc(command: string) {
   const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
   const sendLogs = data => {
-    console.log(`${data}`);
-    const log = ansi.ansi_to_html(`${data}`)
+    data = `${data}`.trim().replace('\n\n', '\n');
+    console.log(data);
+    const log = ansi.ansi_to_html(data)
       .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
       .replace(/  /g, ' &nbsp;');
     if (win && !win.isDestroyed() && !firstLoad) {
