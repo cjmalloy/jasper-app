@@ -3,6 +3,8 @@ services:
     image: "ghcr.io/cjmalloy/jasper:${JASPER_SERVER_VERSION:-latest}"
     pull_policy: "${JASPER_SERVER_PULL:-missing}"
     restart: unless-stopped
+    healthcheck:
+      test: "curl -f http://localhost/management/health/readiness"
     ports:
       - "${JASPER_SERVER_PORT:-8081}:8081"
     environment:
