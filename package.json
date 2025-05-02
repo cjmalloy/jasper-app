@@ -61,7 +61,7 @@
     "wait-on": "^8.0.3"
   },
   "dependencies": {
-    "ansi_up": "^5.2.1",
+    "ansi_up": "^6.0.5",
     "axios": "^1.9.0",
     "electron-context-menu": "^3.6.1",
     "electron-log": "^5.4.0",
