@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.72",
+  "version": "1.0.73",
   "description": "Desktop app for Jasper KM",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -53,7 +53,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^36.2.0",
+    "electron": "^36.2.1",
     "electron-builder": "^26.0.12",
     "electron-debug": "^4.1.0",
     "electron-reloader": "^1.2.3",
