@@ -58,7 +58,7 @@
     "electron-debug": "^4.1.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~5.8.3",
-    "wait-on": "^8.0.3"
+    "wait-on": "^8.0.4"
   },
   "dependencies": {
     "ansi_up": "^5.2.1",
