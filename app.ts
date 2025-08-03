@@ -8,9 +8,7 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
 import * as path from 'path';
-import AnsiUpModule from 'ansi_up';
-// @ts-ignore
-const AnsiUp = AnsiUpModule.default || AnsiUpModule.AnsiUp || AnsiUpModule;
+import { AnsiUp } from 'ansi_up';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
