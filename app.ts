@@ -2,12 +2,19 @@ import axios, { AxiosHeaders } from 'axios';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
-import * as contextMenu from 'electron-context-menu';
+import contextMenu from 'electron-context-menu';
 import * as log from 'electron-log';
-import { autoUpdater } from 'electron-updater';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 import * as fs from 'fs';
 import * as path from 'path';
-import AnsiUp from 'ansi_up'
+import AnsiUpModule from 'ansi_up';
+// @ts-ignore
+const AnsiUp = AnsiUpModule.default || AnsiUpModule.AnsiUp || AnsiUpModule;
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';

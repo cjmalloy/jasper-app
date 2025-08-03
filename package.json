@@ -8,6 +8,7 @@
     "name": "Chris Malloy",
     "email": "cjmalloy@gmail.com"
   },
+  "type": "module",
   "main": "app.js",
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
@@ -63,7 +64,7 @@
   "dependencies": {
     "ansi_up": "^5.2.1",
     "axios": "^1.11.0",
-    "electron-context-menu": "^3.6.1",
+    "electron-context-menu": "^4.1.0",
     "electron-log": "^5.4.2",
     "electron-updater": "^6.6.2",
     "jquery": "^3.7.1"
