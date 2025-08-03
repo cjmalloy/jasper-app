@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 import contextMenu from 'electron-context-menu';
-import * as log from 'electron-log';
+import log from 'electron-log';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
