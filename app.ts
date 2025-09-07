@@ -144,10 +144,21 @@ function startServer() {
   return dc('up')
     .once('error', err => {
       dialog.showErrorBox('Docker Compose Missing',
-        'This application requires docker compose to be installed.\n' +
+        'This application requires Docker Compose to be installed.\n' +
         'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
         err);
       app.quit();
+    })
+    .once('exit', (code, signal) => {
+      if (code === 1) {
+        dialog.showErrorBox('Docker Not Running',
+          'This application requires Docker to be running.\n' +
+          'Start Docker and try again.\n');
+      } else if (code !== null) {
+        console.log(`docker process exited with code ${code}`);
+      } else if (signal !== null) {
+        console.log(`docker process terminated by signal ${signal}`);
+      }
     });
 }
 
