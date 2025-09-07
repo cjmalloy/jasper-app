@@ -13,10 +13,6 @@ services:
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       JASPER_SECURITY_CONTENT_SECURITY_POLICY: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'self' http://localhost:${JASPER_CLIENT_PORT:-8082}"
-      JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID: ""
-      JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET: "${JASPER_SERVER_KEY}"
-      JASPER_SECURITY_CLIENTS_DEFAULT_AUTHENTICATION_JWT_CLIENT_ID: ""
-      JASPER_SECURITY_CLIENTS_DEFAULT_AUTHENTICATION_JWT_BASE64_SECRET: "${JASPER_SERVER_KEY}"
       JASPER_OVERRIDE_SECURITY_MODE: "jwt"
       JASPER_OVERRIDE_SECURITY_CLIENT_ID: ""
       JASPER_OVERRIDE_SECURITY_BASE64_SECRET: "${JASPER_SERVER_KEY}"
