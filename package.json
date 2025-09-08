@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.0.82",
+  "version": "1.0.83",
   "description": "Desktop app for Jasper KM",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -38,10 +38,11 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "darkModeSupport": true,
       "target": {
         "target": "dmg",
         "arch": [
-          "x64"
+          "universal"
         ]
       }
     },
