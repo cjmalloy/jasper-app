@@ -55,7 +55,7 @@
       animation: fadein 2s ease-in-out 1s;
       animation-iteration-count: infinite;
     }
-    select {
+    select.version {
       width: 20px;
     }
     @keyframes fadein {
@@ -87,6 +87,7 @@
       'serverVersion',
       'serverPort',
       'serverProfiles',
+      'serverDefaultRole',
       'storageDir',
       'clientVersion',
       'clientTitle',
@@ -206,10 +207,10 @@
   <label for="serverVersion">Server Version</label>
   <div class="form-array">
     <input id="serverVersion" type="text">
-    <select id="server" onchange="$('#serverVersion').val($('#server').val())">
+    <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val())">
       <option>latest</option>
       <option>v1</option>
-      <option>v1.2</option>
+      <option>v1.3</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
   </div>
@@ -230,6 +231,18 @@
   <span></span>
   <input id="serverProfiles" type="text">
 
+  <label for="serverDefaultRole">Default Role</label>
+  <div class="form-array">
+    <select id="serverDefaultRole">
+      <option value="ROLE_ADMIN">admin</option>
+      <option value="ROLE_MOD">mod</option>
+      <option value="ROLE_EDITOR">editor</option>
+      <option value="ROLE_USER">user</option>
+      <option value="ROLE_VIEWER">viewer</option>
+      <option value="ROLE_ANONYMOUS">anon</option>
+    </select>
+  </div>
+
   <label for="storageDir">Server Storage</label>
   <div class="form-array">
     <input id="storageDir" type="text">
@@ -239,10 +252,10 @@
   <label for="clientVersion">UI Version</label>
   <div class="form-array">
     <input id="clientVersion" type="text">
-    <select id="client" onchange="$('#clientVersion').val($('#client').val())">
+    <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val())">
       <option>latest</option>
       <option>v1</option>
-      <option>v1.2</option>
+      <option>v1.3</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
   </div>
@@ -256,10 +269,15 @@
   <label for="databaseVersion">Postgres Version</label>
   <div class="form-array">
     <input id="databaseVersion" type="text">
-    <select id="database" onchange="$('#databaseVersion').val($('#database').val())">
+    <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
       <option>latest</option>
-      <option>14</option>
+      <option>17</option>
+      <option>16</option>
       <option>15</option>
+      <option>14</option>
+      <option>13</option>
+      <option>12</option>
+      <option>11</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
   </div>

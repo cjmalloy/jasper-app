@@ -37,6 +37,7 @@ try {
     pullServer: true,
     serverPort: '8081',
     serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
+    serverDefaultRole: 'ROLE_ANONYMOUS',
     clientVersion: 'v1.3',
     pullClient: true,
     clientPort: '8082',
@@ -120,6 +121,7 @@ function writeEnv() {
   // const key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
   const key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
   process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
+  process.env.JASPER_SERVER_DEFAULT_ROLE = data.serverDefaultRole || 'ROLE_ANONYMOUS';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;
@@ -322,7 +324,7 @@ async function getImageTags() {
   const versions = {
     server: [],
     client: [],
-    database: ['11', '12', '13', '14', '15'],
+    database: ['11', '12', '13', '14', '15', '16', '17'],
   };
   return ghDockerTags('cjmalloy/jasper')
     .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
