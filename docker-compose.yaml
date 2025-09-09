@@ -24,6 +24,7 @@ services:
       JASPER_CORS_EXPOSED_HEADERS: "Authorization,Content-Type,Link,X-Total-Count,X-XSRF-TOKEN"
       JASPER_CORS_ALLOW_CREDENTIALS: true
       JASPER_CORS_MAX_AGE: 1800
+      JASPER_HEAP: 2g
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}:/var/lib/jasper"
     depends_on:
