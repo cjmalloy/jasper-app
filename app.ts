@@ -143,6 +143,7 @@ function writeEnv() {
   process.env.JASPER_SSH_VERSION = data.sshVersion ?? '';
   process.env.JASPER_SSH_PULL = data.pullSsh ? 'always' : 'missing';
   process.env.JASPER_SSH_PORT = data.sshPort;
+  process.env.JASPER_SSH_TOKEN = getToken('+user', key) ?? '';
 }
 
 function startServer() {
