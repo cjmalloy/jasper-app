@@ -67,3 +67,5 @@ services:
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/secrets:/secrets"
+    depends_on:
+      - web
