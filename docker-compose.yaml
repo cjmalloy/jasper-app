@@ -59,10 +59,11 @@ services:
     restart: unless-stopped
     healthcheck:
       test: "/healthcheck.sh"
+      retries: 1
     ports:
       - "${JASPER_SSH_PORT:-8022}:22"
     environment:
-      UPSTREAM: "http://web:8081/"
+      UPSTREAM: http://web:8081
       TOKEN: "${JASPER_CLIENT_TOKEN}"
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
