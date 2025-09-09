@@ -174,15 +174,16 @@ function startServer() {
 
 function shutdown() {
   writeData();
-  if (win && !win.isDestroyed()) {
-    win.close();
-  }
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
     { label: 'Force Quit', click: forceQuit },
   ]));
   dc('down')
     .once('close', forceQuit);
+  if (win) win.destroy();
+  if (logs) logs.destroy();
+  if (settings) settings.destroy();
+
 }
 
 let forceQuitting = false;
