@@ -92,6 +92,8 @@
       'clientVersion',
       'clientTitle',
       'clientPort',
+      'sshVersion',
+      'sshPort',
       'databaseVersion',
       'dataDir',
     ];
@@ -109,6 +111,7 @@
       'pullClient',
       'pullServer',
       'pullDatabase',
+      'pullSsh',
       'showLogsOnStart',
     ];
 
@@ -287,6 +290,20 @@
     <input id="dataDir" type="text">
     <button type="button" onclick="openDir($('#dataDir').val())">📂️</button>
   </div>
+
+  <label for="sshVersion">SSH Version</label>
+  <div class="form-array">
+    <input id="sshVersion" type="text">
+    <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.3</option>
+    </select>
+    <div title="Check for updates on startup" class="au"><label for="pullSsh">🔄</label><input id="pullSsh" type="checkbox"></div>
+  </div>
+
+  <label for="sshPort">SSH Port</label>
+  <input id="sshPort" type="text">
 
 
   <label for="showLogsOnStart">Show Logs on Startup</label>

@@ -46,6 +46,9 @@ try {
     pullDatabase: true,
     dataDir: path.join(app.getPath('userData'), 'data'),
     storageDir: path.join(app.getPath('userData'), 'storage'),
+    sshVersion: 'v1.1',
+    pullSsh: true,
+    sshPort: '8022',
     showLogsOnStart: false,
   };
 }
@@ -136,6 +139,9 @@ function writeEnv() {
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
   process.env.JASPER_DATA_DIR = data.dataDir;
   process.env.JASPER_STORAGE_DIR = data.storageDir;
+  process.env.JASPER_SSH_VERSION = data.sshVersion ?? '';
+  process.env.JASPER_SSH_PULL = data.pullSsh ? 'always' : 'missing';
+  process.env.JASPER_SSH_PORT = data.sshPort;
 }
 
 function startServer() {
@@ -325,11 +331,14 @@ async function getImageTags() {
     server: [],
     client: [],
     database: ['11', '12', '13', '14', '15', '16', '17'],
+    ssh: [],
   };
   return ghDockerTags('cjmalloy/jasper')
     .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
     .then(() => ghDockerTags('cjmalloy/jasper-ui'))
     .then(tags => versions.client = tags.filter(t => t.startsWith('v')))
+    .then(() => ghDockerTags('cjmalloy/jasper-ssh'))
+    .then(tags => versions.ssh = tags.filter(t => t.startsWith('v')))
     .then(() => _imageTags = versions);
 }
 
