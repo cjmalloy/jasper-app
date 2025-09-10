@@ -82,6 +82,7 @@
   </style>
   <script>
     const fields = [
+      'locale',
       'userTag',
       'appVersion',
       'serverVersion',
@@ -197,6 +198,14 @@
 <body>
 <h1>Jasper Application Settings</h1>
 <div class="label-column">
+
+  <label for="locale">Language</label>
+  <div class="form-array">
+    <select id="locale">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
 
   <label for="userTag">User Tag</label>
   <input id="userTag" type="text">

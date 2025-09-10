@@ -31,6 +31,7 @@ try {
   data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
 } catch(e) {
   data = {
+    locale: app.getLocale(),
     userTag: '+user',
     autoUpdate: true,
     serverVersion: 'v1.3',
@@ -123,6 +124,7 @@ function writeEnv() {
   // DEBUG: Use with profile dev
   // const key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
   const key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
+  process.env.JASPER_LOCALE = data.locale ?? '';
   process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_DEFAULT_ROLE = data.serverDefaultRole || 'ROLE_ANONYMOUS';
   process.env.JASPER_PREFETCH = ['ROLE_VIEWER', 'ROLE_ANONYMOUS'].includes(data.serverDefaultRole || 'ROLE_ANONYMOUS') ? 'true' : 'false';
