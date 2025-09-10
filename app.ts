@@ -50,6 +50,7 @@ try {
     sshVersion: 'v1.1',
     pullSsh: true,
     sshPort: '8022',
+    cfToken: '',
     showLogsOnStart: false,
   };
 }
@@ -85,7 +86,12 @@ function notify(command: string) {
 
 const ansi = new AnsiUp();
 function dc(command: string) {
-  const dc = spawn('docker', ['compose', '-f', serverConfig, command]);
+  const dc = spawn('docker', [
+    'compose',
+    '-f', serverConfig,
+    ...data.cfToken ? ['--profile', 'cf'] : [],
+    command,
+  ]);
   const sendLogs = data => {
     data = `${data}`.trim().replace('\n\n', '\n');
     console.log(data);
@@ -146,6 +152,7 @@ function writeEnv() {
   process.env.JASPER_SSH_PULL = data.pullSsh ? 'always' : 'missing';
   process.env.JASPER_SSH_PORT = data.sshPort;
   process.env.JASPER_SSH_TOKEN = getToken('+user', key) ?? '';
+  process.env.CLOUDFLARE_TOKEN = data.cfToken;
 }
 
 function startServer() {

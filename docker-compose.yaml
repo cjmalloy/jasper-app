@@ -71,3 +71,12 @@ services:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/secrets:/secrets"
     depends_on:
       - web
+  cf:
+    profiles:
+      - cf
+    image: cloudflare/cloudflared
+    pull_policy: always
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARE_TOKEN}"
