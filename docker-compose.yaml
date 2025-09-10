@@ -83,3 +83,13 @@ services:
     command: tunnel run
     environment:
       TUNNEL_TOKEN: "${CLOUDFLARE_TOKEN}"
+  ngrok:
+    profiles:
+      - ngrok
+    image: ngrok/ngrok
+    pull_policy: always
+    restart: unless-stopped
+    network_mode: "host"
+    command: "tcp localhost:${JASPER_SSH_PORT:-8022} --url=tcp://${NGROK_URL}"
+    environment:
+      NGROK_AUTHTOKEN: "${NGROK_TOKEN}"

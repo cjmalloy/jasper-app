@@ -51,6 +51,8 @@ try {
     pullSsh: true,
     sshPort: '8022',
     cfToken: '',
+    ngrokUrl: '',
+    ngrokToken: '',
     showLogsOnStart: false,
   };
 }
@@ -90,6 +92,7 @@ function dc(command: string) {
     'compose',
     '-f', serverConfig,
     ...data.cfToken ? ['--profile', 'cf'] : [],
+    ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
     command,
   ]);
   const sendLogs = data => {
@@ -153,6 +156,8 @@ function writeEnv() {
   process.env.JASPER_SSH_PORT = data.sshPort;
   process.env.JASPER_SSH_TOKEN = getToken('+user', key) ?? '';
   process.env.CLOUDFLARE_TOKEN = data.cfToken;
+  process.env.NGROK_URL = data.ngrokUrl;
+  process.env.NGROK_TOKEN = data.ngrokToken;
 }
 
 function startServer() {

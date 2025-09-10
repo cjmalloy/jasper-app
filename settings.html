@@ -96,6 +96,8 @@
       'sshVersion',
       'sshPort',
       'cfToken',
+      'ngrokUrl',
+      'ngrokToken',
       'databaseVersion',
       'dataDir',
     ];
@@ -317,6 +319,12 @@
 
   <label for="cfToken">Cloudflare Token</label>
   <input id="cfToken" type="text">
+
+  <label for="ngrokUrl">Ngrok URL</label>
+  <input id="ngrokUrl" type="text">
+
+  <label for="ngrokToken">Ngrok Token</label>
+  <input id="ngrokToken" type="text">
 
   <label for="showLogsOnStart">Show Logs on Startup</label>
   <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>
