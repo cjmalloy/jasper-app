@@ -6,14 +6,14 @@ services:
     healthcheck:
       test: "curl -f http://localhost/management/health/readiness"
     ports:
-      - "${JASPER_SERVER_PORT:-8081}:8081"
+      - "${JASPER_SERVER_PORT:-8081}:80"
     environment:
+      SERVER_PORT: 80
       SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,jwt,storage,feed-burst,push-burst,pull-burst}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       JASPER_DEFAULT_ROLE: "${JASPER_SERVER_DEFAULT_ROLE:-ROLE_ANONYMOUS}"
-      JASPER_SECURITY_CONTENT_SECURITY_POLICY: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'self' http://localhost:${JASPER_CLIENT_PORT:-8082}"
       JASPER_OVERRIDE_SECURITY_MODE: "jwt"
       JASPER_OVERRIDE_SECURITY_CLIENT_ID: ""
       JASPER_OVERRIDE_SECURITY_BASE64_SECRET: "${JASPER_SERVER_KEY}"
@@ -21,12 +21,6 @@ services:
       JASPER_OVERRIDE_SERVER_MAX_REPL_ENTITY_BATCH: 5000
       JASPER_OVERRIDE_SERVER_MAX_PUSH_ENTITY_BATCH: 100000
       JASPER_OVERRIDE_SERVER_MAX_PULL_ENTITY_BATCH: 100000
-      JASPER_CORS_ALLOWED_ORIGINS: "http://localhost:${JASPER_CLIENT_PORT:-8082}"
-      JASPER_CORS_ALLOWED_METHODS: "*"
-      JASPER_CORS_ALLOWED_HEADERS: "Authorization,Content-Type,Link,X-Total-Count,X-XSRF-TOKEN"
-      JASPER_CORS_EXPOSED_HEADERS: "Authorization,Content-Type,Link,X-Total-Count,X-XSRF-TOKEN"
-      JASPER_CORS_ALLOW_CREDENTIALS: true
-      JASPER_CORS_MAX_AGE: 1800
       JASPER_HEAP: 2g
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}:/var/lib/jasper"
@@ -49,14 +43,13 @@ services:
     ports:
       - "${JASPER_CLIENT_PORT:-8082}:80"
     environment:
-      JASPER_API: "http://localhost:${JASPER_SERVER_PORT:-8081}"
+      JASPER_API_PROXY: "http://web:80"
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
       JASPER_LOCALE: "${JASPER_LOCALE}"
       JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
       JASPER_TOKEN: "${JASPER_CLIENT_TOKEN}"
-      JASPER_PREFETCH: "${JASPER_PREFETCH:-true}"
-      CSP_DEFAULT_SRC: "http://localhost:${JASPER_SERVER_PORT:-8081} ws://localhost:${JASPER_SERVER_PORT:-8081}"
-      CSP_CONNECT_SRC: "http://localhost:${JASPER_SERVER_PORT:-8081} ws://localhost:${JASPER_SERVER_PORT:-8081}"
+    depends_on:
+      - web
   ssh:
     image: "ghcr.io/cjmalloy/jasper-ssh:${JASPER_SSH_VERSION:-latest}"
     pull_policy: "${JASPER_SSH_PULL:-missing}"
@@ -67,7 +60,7 @@ services:
     ports:
       - "${JASPER_SSH_PORT:-8022}:22"
     environment:
-      UPSTREAM: http://web:8081
+      UPSTREAM: "http://web:80"
       TOKEN: "${JASPER_SSH_TOKEN}"
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
@@ -83,6 +76,21 @@ services:
     command: tunnel run
     environment:
       TUNNEL_TOKEN: "${CLOUDFLARE_TOKEN}"
+    depends_on:
+      - proxy
+  proxy:
+    profiles:
+      - cf
+    image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
+    pull_policy: "${JASPER_CLIENT_PULL:-missing}"
+    restart: unless-stopped
+    environment:
+      JASPER_API_PROXY: "http://web:80"
+      JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
+      JASPER_LOCALE: "${JASPER_LOCALE}"
+      JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
+    depends_on:
+      - web
   ngrok:
     profiles:
       - ngrok
