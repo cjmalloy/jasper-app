@@ -32,7 +32,6 @@ try {
 } catch(e) {
   data = {
     locale: app.getLocale(),
-    userTag: '+user',
     autoUpdate: true,
     serverVersion: 'v1.3',
     pullServer: true,
@@ -144,7 +143,7 @@ function writeEnv() {
   process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
   process.env.JASPER_CLIENT_PORT = data.clientPort;
   process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
-  process.env.JASPER_CLIENT_TOKEN = getToken(data.userTag || '', key) ?? '';
+  process.env.JASPER_CLIENT_TOKEN = getToken('+user', key) ?? '';
   process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
   process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
   process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
