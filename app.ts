@@ -135,6 +135,7 @@ function writeEnv() {
   process.env.JASPER_LOCALE = data.locale ?? '';
   process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_DEFAULT_ROLE = data.serverDefaultRole || 'ROLE_ANONYMOUS';
+  process.env.JASPER_PREFETCH = ['ROLE_VIEWER', 'ROLE_ANONYMOUS'].includes(data.serverDefaultRole || 'ROLE_ANONYMOUS') ? 'true' : 'false';
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;

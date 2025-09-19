@@ -48,6 +48,7 @@ services:
       JASPER_LOCALE: "${JASPER_LOCALE}"
       JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
       JASPER_TOKEN: "${JASPER_CLIENT_TOKEN}"
+      JASPER_PREFETCH: "${JASPER_PREFETCH:-true}"
     depends_on:
       - web
   ssh:
@@ -89,6 +90,7 @@ services:
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
       JASPER_LOCALE: "${JASPER_LOCALE}"
       JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
+      JASPER_PREFETCH: "${JASPER_PREFETCH:-true}"
     depends_on:
       - web
   ngrok:
