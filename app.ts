@@ -38,6 +38,7 @@ try {
     serverPort: '8081',
     serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
     serverDefaultRole: 'ROLE_ANONYMOUS',
+    serverRam: '1g',
     clientVersion: 'v1.3',
     pullClient: true,
     clientPort: '8082',
@@ -139,6 +140,7 @@ function writeEnv() {
   process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
   process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
   process.env.JASPER_SERVER_PORT = data.serverPort;
+  process.env.JASPER_SERVER_HEAP = data.serverRam ?? '';
   process.env.JASPER_SERVER_KEY = key;
   process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
   process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
