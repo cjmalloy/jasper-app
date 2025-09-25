@@ -430,7 +430,7 @@ function updateSettings(value) {
   if (openWin) win.hide();
   dc('down').once('close', () => {
     startServer();
-    if (openWin) {
+    if (openWin && !forceQuitting) {
       win.once('closed', createMainWindow)
       win.close();
     }
