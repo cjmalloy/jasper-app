@@ -9,7 +9,7 @@ services:
       - "${JASPER_SERVER_PORT:-8081}:80"
     environment:
       SERVER_PORT: 80
-      SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,jwt,storage,feed-burst,push-burst,pull-burst}"
+      SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,jwt,storage}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
@@ -27,7 +27,7 @@ services:
     depends_on:
       - db
   db:
-    image: "postgres:${JASPER_DATABASE_VERSION:-16}"
+    image: "postgres:${JASPER_DATABASE_VERSION:-17}"
     pull_policy: "${JASPER_DATABASE_PULL:-missing}"
     restart: unless-stopped
     environment:
@@ -103,3 +103,5 @@ services:
     command: "tcp localhost:${JASPER_SSH_PORT:-8022} --url=tcp://${NGROK_URL}"
     environment:
       NGROK_AUTHTOKEN: "${NGROK_TOKEN}"
+    depends_on:
+      - ssh
