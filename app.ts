@@ -295,17 +295,19 @@ function createWindow(config: any) {
 }
 
 function createMainWindow(showLoading = false) {
-  if (win && !win.isDestroyed()) {
+  if (!showLoading && win && !win.isDestroyed()) {
     win.show();
     return;
   }
-  win = createWindow(data);
-  win.webContents.setWindowOpenHandler(({url}) => {
-    // Open any links in a browser
-    // TODO: Not working for links in markdown
-    shell.openExternal(url);
-    return {action: 'deny'};
-  });
+  if (!win || win.isDestroyed()) {
+    win = createWindow(data);
+    win.webContents.setWindowOpenHandler(({url}) => {
+      // Open any links in a browser
+      // TODO: Not working for links in markdown
+      shell.openExternal(url);
+      return {action: 'deny'};
+    });
+  }
   if (showLoading) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
@@ -330,7 +332,9 @@ function createSettingsWindow() {
     settings.show();
     data.appVersion = app.getVersion();
     settings.webContents.send('update-settings', data);
-    getImageTags().then(data => settings.webContents.send('image-tags', data));
+    getImageTags().then(data => {
+      if (!settings.isDestroyed()) settings.webContents.send('image-tags', data);
+    });
     return;
   }
   settings = createWindow(data.settings);
@@ -338,7 +342,9 @@ function createSettingsWindow() {
   settings.once('ready-to-show', () => {
     data.appVersion = app.getVersion();
     settings.webContents.send('update-settings', data);
-    getImageTags().then(data => settings.webContents.send('image-tags', data));
+    getImageTags().then(data => {
+      if (!settings.isDestroyed()) settings.webContents.send('image-tags', data);
+    });
   });
 }
 
@@ -428,14 +434,11 @@ function updateSettings(value) {
   };
   writeEnv();
   writeData();
-  const openWin = win && !win.isDestroyed();
-  if (openWin) win.hide();
+  if (win && !win.isDestroyed()) win.hide();
   dc('down').once('close', () => {
     startServer();
-    if (openWin) {
-      win.once('closed', createMainWindow)
-      win.close();
-    }
+    createMainWindow(true);
+    win.show();
   });
 }
 
