@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use tauri::{
-    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder,
 };
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 
 mod settings;
 use settings::Settings;
@@ -159,7 +158,7 @@ async fn run_docker_command(command: &str, state: &State<'_, AppState>) -> Resul
     Ok(())
 }
 
-async fn start_docker_compose(state: &State<'_, AppState>, app: &AppHandle) -> Result<(), String> {
+async fn start_docker_compose(state: &State<'_, AppState>, _app: &AppHandle) -> Result<(), String> {
     let settings = state.settings.lock().unwrap().clone();
     drop(settings);
     
@@ -230,8 +229,6 @@ fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_settings_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let settings_path = app.path().app_data_dir()?.join("settings.html");
-    
     WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
         .title("Jasper Settings")
         .inner_size(540.0, 620.0)
@@ -279,11 +276,11 @@ pub fn run() {
             // Create system tray
             create_tray(app.handle())?;
             
-            // Start docker compose
+            // Start docker compose in background
             let app_handle = app.handle().clone();
-            let state_handle = app.state::<AppState>();
             tauri::async_runtime::spawn(async move {
-                let _ = start_docker_compose(&state_handle, &app_handle).await;
+                let state = app_handle.state::<AppState>();
+                let _ = start_docker_compose(&state, &app_handle).await;
             });
             
             Ok(())

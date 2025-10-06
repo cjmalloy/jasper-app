@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use anyhow::Result;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -149,6 +149,7 @@ impl Settings {
 
 fn generate_jwt_key() -> String {
     use rand::Rng;
+    use base64::Engine;
     let key: Vec<u8> = (0..128).map(|_| rand::thread_rng().gen()).collect();
     base64::engine::general_purpose::STANDARD.encode(&key)
 }
