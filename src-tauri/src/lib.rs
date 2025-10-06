@@ -147,6 +147,11 @@ async fn run_docker_command(command: &str, state: &State<'_, AppState>) -> Resul
         cmd.arg("--profile").arg("ngrok");
     }
     
+    // Set environment variables for docker-compose
+    for (key, value) in settings.get_env_vars() {
+        cmd.env(key, value);
+    }
+    
     cmd.arg(command);
     
     let output = cmd.output().map_err(|e| e.to_string())?;

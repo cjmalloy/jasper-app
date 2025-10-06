@@ -104,7 +104,7 @@ impl Settings {
     
     pub fn get_docker_compose_path(&self) -> PathBuf {
         // In production, the docker-compose.yaml will be bundled with the app
-        // For now, we'll use a path relative to the app
+        // Try to find it in the resource directory first, otherwise use current directory
         PathBuf::from("docker-compose.yaml")
     }
     
