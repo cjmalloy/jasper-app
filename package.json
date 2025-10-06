@@ -9,65 +9,17 @@
     "email": "cjmalloy@gmail.com"
   },
   "type": "module",
-  "main": "app.js",
   "scripts": {
-    "postinstall": "electron-builder install-app-deps",
     "tsc": "tsc -p tsconfig.json",
-    "start": "npm run tsc && electron app.js",
-    "build": "npm run tsc && electron-builder build",
-    "ci": "npm run tsc && electron-builder build --publish never"
-  },
-  "build": {
-    "asar": false,
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "cjmalloy",
-        "repo": "jasper-app"
-      }
-    ],
-    "directories": {
-      "output": "release/"
-    },
-    "files": [
-      "**/*",
-      "!**/*.ts",
-      "!*.map",
-      "!package.json",
-      "!package-lock.json"
-    ],
-    "mac": {
-      "category": "public.app-category.productivity",
-      "darkModeSupport": true,
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "universal"
-        ]
-      }
-    },
-    "linux": {
-      "category": "Office",
-      "target": [
-        "AppImage"
-      ]
-    }
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "npm run tsc && tauri build",
+    "start": "tauri dev"
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^38.2.0",
-    "electron-builder": "^26.0.12",
-    "electron-debug": "^4.1.0",
-    "electron-reloader": "^1.2.3",
-    "typescript": "~5.9.3",
-    "wait-on": "^9.0.1"
+    "@tauri-apps/cli": "^2.8.4",
+    "typescript": "~5.9.3"
   },
-  "dependencies": {
-    "ansi_up": "^6.0.6",
-    "axios": "^1.12.2",
-    "electron-context-menu": "^4.1.1",
-    "electron-log": "^5.4.3",
-    "electron-updater": "^6.6.2",
-    "jquery": "^3.7.1"
-  }
+  "dependencies": {}
 }

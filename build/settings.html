@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Jasper Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="node_modules/jquery/dist/jquery.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -81,6 +81,9 @@
     }
   </style>
   <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+    
     const fields = [
       'locale',
       'appVersion',
@@ -119,7 +122,9 @@
       'showLogsOnStart',
     ];
 
-    window.electronAPI.handleSettings((event, settings) => {
+    async function loadSettings() {
+      const settings = await invoke('fetch_settings');
+      
       if (settings.serverProfiles) {
         const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
         for (const p of profiles) {
@@ -132,13 +137,9 @@
       for (const f of flags) {
         $('#' + f).prop('checked', settings[f] ?? false);
       }
-    });
-
-    window.electronAPI.notifyFinished((event, command) => {
-      finished(command);
-    });
-
-    window.electronAPI.updateImageTags((event, imageTags) => {
+      
+      // Load image tags
+      const imageTags = await invoke('get_image_tags');
       for (const [key, value] of Object.entries(imageTags)) {
         if (!value || !value.length) continue;
         const $select = $(`#${key}`);
@@ -150,9 +151,13 @@
         }
         $select.val($(`#${key}Version`).val());
       }
+    }
+
+    listen('finished', (event) => {
+      finished(event.payload);
     });
 
-    function save() {
+    async function save() {
       const settings = {};
       for (const f of fields) {
         settings[f] = $('#' + f).val();
@@ -160,22 +165,25 @@
       for (const f of flags) {
         settings[f] = $('#' + f).prop('checked');
       }
-      window.electronAPI.saveSettings(settings);
+      await invoke('save_settings', { newSettings: settings });
       window.close();
     }
 
-    function patch(f) {
-      window.electronAPI.patchSettings({name: f, value: $('#' + f).checked});
+    async function patch(f) {
+      await invoke('patch_settings', { 
+        name: f, 
+        value: $('#' + f).prop('checked') 
+      });
     }
 
-    function openDir(dir) {
-      window.electronAPI.openDir(dir);
+    async function openDir(dir) {
+      await invoke('open_dir', { path: dir });
     }
 
-    function sendCommand(id, ...args) {
-      window.electronAPI.command(id, args);
+    async function sendCommand(id, ...args) {
       $(`#${id}-button`).css('display', 'none');
       $(`#${id}-loading`).css('display', 'block');
+      await invoke('docker_command', { command: id });
     }
 
     function finished(id) {
@@ -190,8 +198,9 @@
       }
       $('#serverProfiles').val(activeProfiles.join(','));
     }
+    
     window.onload = () => {
-      window.electronAPI.fetchSettings();
+      loadSettings();
       $('input')
         .focus(e => $(e.currentTarget).css('z-index', 1))
         .blur(e => $(e.currentTarget).css('z-index', ''));
