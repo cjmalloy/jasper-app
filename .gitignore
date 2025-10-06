@@ -12,6 +12,9 @@ app.js.map
 # Tauri
 /src-tauri/target
 
+# Old Electron files (backup)
+/.electron-backup
+
 # Node
 /node_modules
 npm-debug.log

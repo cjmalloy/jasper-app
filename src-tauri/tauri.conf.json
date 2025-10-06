@@ -32,7 +32,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb", "rpm"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,6 +43,11 @@
     "resources": ["../docker-compose.yaml"],
     "category": "Productivity",
     "shortDescription": "Desktop app for Jasper KM",
-    "longDescription": "Desktop app for Jasper KM. Uses Tauri to wrap a docker compose config."
+    "longDescription": "Desktop app for Jasper KM. Uses Tauri to wrap a docker compose config.",
+    "linux": {
+      "deb": {
+        "depends": ["docker-compose"]
+      }
+    }
   }
 }
