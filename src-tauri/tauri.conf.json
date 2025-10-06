@@ -1,0 +1,48 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Jasper",
+  "version": "1.0.98",
+  "identifier": "com.jasper.app",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:8082",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run tsc"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Jasper",
+        "width": 1280,
+        "height": 960,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/icon.png",
+      "tooltip": "Jasper"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": ["../docker-compose.yaml"],
+    "category": "Productivity",
+    "shortDescription": "Desktop app for Jasper KM",
+    "longDescription": "Desktop app for Jasper KM. Uses Tauri to wrap a docker compose config."
+  }
+}

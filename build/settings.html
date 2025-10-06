@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Jasper Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    hr {
+      border: none;
+      border-top: 1px dotted black;
+    }
+    .label-column {
+      display: grid;
+      grid-gap: 8px;
+      grid-template-columns: min-content auto;
+    }
+    label, button, .cb span {
+      white-space: nowrap;
+    }
+    input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+    }
+    .form-array {
+      display: flex;
+    }
+    .form-array *:not(:first-child) {
+      margin-left: 3px;
+    }
+    .form-array > input {
+      flex: 1;
+    }
+    .form-array > input + select {
+      margin-left: -3px !important;
+    }
+    .au > label {
+      vertical-align: top;
+      font-size: 18px;
+    }
+    .loading {
+      display: none;
+      pointer-events: none;
+      opacity: 0;
+      position: relative;
+      top: -25px;
+      text-align: center;
+      font-size: 40px;
+      height: 21.5px;
+      min-width: 116px;
+      overflow: visible;
+      animation: fadein 2s ease-in-out 1s;
+      animation-iteration-count: infinite;
+    }
+    select.version {
+      width: 20px;
+    }
+    @keyframes fadein {
+      from {
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      to {
+        opacity: 0;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #242424;
+        color: #c9c9c9;
+        color-scheme: dark;
+      }
+      hr {
+        border-top: 1px dotted lightgrey;
+      }
+    }
+  </style>
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+    
+    const fields = [
+      'locale',
+      'appVersion',
+      'serverVersion',
+      'serverPort',
+      'serverProfiles',
+      'serverDefaultRole',
+      'serverRam',
+      'storageDir',
+      'clientVersion',
+      'clientTitle',
+      'clientPort',
+      'sshVersion',
+      'sshPort',
+      'cfToken',
+      'ngrokUrl',
+      'ngrokToken',
+      'databaseVersion',
+      'dataDir',
+    ];
+    const profiles = [
+      'prod',
+      'debug',
+      'scripts',
+      'proxy',
+      'file-cache',
+      'recycler',
+      'preload',
+    ];
+    const flags = [
+      'autoUpdate',
+      'pullClient',
+      'pullServer',
+      'pullDatabase',
+      'pullSsh',
+      'showLogsOnStart',
+    ];
+
+    async function loadSettings() {
+      const settings = await invoke('fetch_settings');
+      
+      if (settings.serverProfiles) {
+        const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
+        for (const p of profiles) {
+          $(`#serverProfiles_${p}`).prop('checked', activeProfiles.includes(p));
+        }
+      }
+      for (const f of fields) {
+        $('#' + f).val(settings[f] ?? '');
+      }
+      for (const f of flags) {
+        $('#' + f).prop('checked', settings[f] ?? false);
+      }
+      
+      // Load image tags
+      const imageTags = await invoke('get_image_tags');
+      for (const [key, value] of Object.entries(imageTags)) {
+        if (!value || !value.length) continue;
+        const $select = $(`#${key}`);
+        $select.html('');
+        value.reverse();
+        $select.append($(`<option>latest</option>`));
+        for (const tag of value) {
+          $select.append($(`<option>${tag}</option>`));
+        }
+        $select.val($(`#${key}Version`).val());
+      }
+    }
+
+    listen('finished', (event) => {
+      finished(event.payload);
+    });
+
+    async function save() {
+      const settings = {};
+      for (const f of fields) {
+        settings[f] = $('#' + f).val();
+      }
+      for (const f of flags) {
+        settings[f] = $('#' + f).prop('checked');
+      }
+      await invoke('save_settings', { newSettings: settings });
+      window.close();
+    }
+
+    async function patch(f) {
+      await invoke('patch_settings', { 
+        name: f, 
+        value: $('#' + f).prop('checked') 
+      });
+    }
+
+    async function openDir(dir) {
+      await invoke('open_dir', { path: dir });
+    }
+
+    async function sendCommand(id, ...args) {
+      $(`#${id}-button`).css('display', 'none');
+      $(`#${id}-loading`).css('display', 'block');
+      await invoke('docker_command', { command: id });
+    }
+
+    function finished(id) {
+      $(`#${id}-button`).css('display', 'block');
+      $(`#${id}-loading`).css('display', 'none');
+    }
+
+    function updateProfiles() {
+      const activeProfiles = ['prod', 'storage', 'jwt'];
+      for (const p of profiles) {
+        if ($(`#serverProfiles_${p}`).prop('checked')) activeProfiles.push(p)
+      }
+      $('#serverProfiles').val(activeProfiles.join(','));
+    }
+    
+    window.onload = () => {
+      loadSettings();
+      $('input')
+        .focus(e => $(e.currentTarget).css('z-index', 1))
+        .blur(e => $(e.currentTarget).css('z-index', ''));
+    };
+  </script>
+</head>
+<body>
+<h1>Jasper Application Settings</h1>
+<div class="label-column">
+
+  <label for="locale">Language</label>
+  <div class="form-array">
+    <select id="locale">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
+  <label for="appVersion">App Version</label>
+  <div class="form-array">
+    <input id="appVersion" type="text" disabled>
+    <div title="Check for updates on startup" class="au"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
+  </div>
+
+  <label for="serverVersion">Server Version</label>
+  <div class="form-array">
+    <input id="serverVersion" type="text">
+    <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.3</option>
+    </select>
+    <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
+  </div>
+
+  <label for="serverPort">Server Port</label>
+  <input id="serverPort" type="text">
+
+  <label for="serverProfiles">Server Profiles</label>
+  <div class="cb">
+    <span><input type="checkbox" id="serverProfiles_scripts" onclick="updateProfiles()"><label for="serverProfiles_scripts">Server Scripts</label></span>
+    <span><input type="checkbox" id="serverProfiles_proxy" onclick="updateProfiles()"><label for="serverProfiles_proxy">Proxy</label></span>
+    <span><input type="checkbox" id="serverProfiles_file-cache" onclick="updateProfiles()"><label for="serverProfiles_file-cache">File Cache</label></span>
+    <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler">Recycler</label></span>
+    <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload">Preload</label></span>
+    <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
+  </div>
+
+  <span></span>
+  <input id="serverProfiles" type="text">
+
+  <label for="serverDefaultRole">Default Role</label>
+  <div class="form-array">
+    <select id="serverDefaultRole">
+      <option value="ROLE_ADMIN">admin</option>
+      <option value="ROLE_MOD">mod</option>
+      <option value="ROLE_EDITOR">editor</option>
+      <option value="ROLE_USER">user</option>
+      <option value="ROLE_VIEWER">viewer</option>
+      <option value="ROLE_ANONYMOUS">anon</option>
+    </select>
+  </div>
+
+  <label for="serverRam">Server RAM</label>
+  <input id="serverRam" type="text">
+
+  <label for="storageDir">Server Storage</label>
+  <div class="form-array">
+    <input id="storageDir" type="text">
+    <button type="button" onclick="openDir($('#storageDir').val())">📂️</button>
+  </div>
+
+  <label for="clientVersion">UI Version</label>
+  <div class="form-array">
+    <input id="clientVersion" type="text">
+    <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.3</option>
+    </select>
+    <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
+  </div>
+
+  <label for="clientTitle">UI Title</label>
+  <input id="clientTitle" type="text">
+
+  <label for="clientPort">UI Port</label>
+  <input id="clientPort" type="text">
+
+  <label for="databaseVersion">Postgres Version</label>
+  <div class="form-array">
+    <input id="databaseVersion" type="text">
+    <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
+      <option>latest</option>
+      <option>17</option>
+      <option>16</option>
+      <option>15</option>
+      <option>14</option>
+      <option>13</option>
+      <option>12</option>
+      <option>11</option>
+    </select>
+    <div title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
+  </div>
+
+  <label for="dataDir">Postgres Directory</label>
+  <div class="form-array">
+    <input id="dataDir" type="text">
+    <button type="button" onclick="openDir($('#dataDir').val())">📂️</button>
+  </div>
+
+  <label for="sshVersion">SSH Version</label>
+  <div class="form-array">
+    <input id="sshVersion" type="text">
+    <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val())">
+      <option>latest</option>
+      <option>v1</option>
+      <option>v1.3</option>
+    </select>
+    <div title="Check for updates on startup" class="au"><label for="pullSsh">🔄</label><input id="pullSsh" type="checkbox"></div>
+  </div>
+
+  <label for="sshPort">SSH Port</label>
+  <input id="sshPort" type="text">
+
+  <label for="cfToken">Cloudflare Token</label>
+  <input id="cfToken" type="text">
+
+  <label for="ngrokUrl">Ngrok URL</label>
+  <input id="ngrokUrl" type="text">
+
+  <label for="ngrokToken">Ngrok Token</label>
+  <input id="ngrokToken" type="text">
+
+  <label for="showLogsOnStart">Show Logs on Startup</label>
+  <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>
+
+  <span><!-- Buttons --></span>
+  <div>
+    <button type="button" onclick="save()">Save & Hard Reload</button>
+  </div>
+</div>
+<br>
+<hr>
+<h2>Troubleshooting</h2>
+<div class="label-column">
+
+  <button id="restart-button" type="button" onclick="sendCommand('restart')">Restart</button>
+  <span id="restart-loading" class="loading">...</span>
+  <label>Restart the servers and database</label>
+
+  <button id="pull-button" type="button" onclick="sendCommand('pull')">Pull New Images</button>
+  <span id="pull-loading" class="loading">...</span>
+  <label>Check for updates and download them if available</label>
+
+  <button id="down-button" type="button" onclick="sendCommand('down')">Stop</button>
+  <span id="down-loading" class="loading">...</span>
+  <label>Stop all servers and database</label>
+
+  <button id="up-button" type="button" onclick="sendCommand('up')">Start</button>
+  <span id="up-loading" class="loading">...</span>
+  <label>Start all servers and database if not already started</label>
+
+  <button id="pause-button" type="button" onclick="sendCommand('pause')">Pause</button>
+  <span id="pause-loading" class="loading">...</span>
+  <label>Pause all servers and database</label>
+
+  <button id="unpause-button" type="button" onclick="sendCommand('unpause')">Unpause</button>
+  <span id="unpause-loading" class="loading">...</span>
+  <label>Unpause all servers and database</label>
+</div>
+</body>
+</html>

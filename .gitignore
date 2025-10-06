@@ -9,6 +9,9 @@
 app.js
 app.js.map
 
+# Tauri
+/src-tauri/target
+
 # Node
 /node_modules
 npm-debug.log

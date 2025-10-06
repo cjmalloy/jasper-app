@@ -1,5 +1,5 @@
 # Jasper Desktop App
-Desktop app for [Jasper KM](https://github.com/cjmalloy/jasper). Uses electron to wrap a docker compose config.  
+Desktop app for [Jasper KM](https://github.com/cjmalloy/jasper). Uses Tauri to wrap a docker compose config.  
 
 - [Downloads](https://github.com/cjmalloy/jasper-app/releases/latest)
 
@@ -16,17 +16,16 @@ xattr -d com.apple.quarantine /Applications/Jasper.app
 If Docker is not running the app will not start.
 
 ## Developing
-This project uses npm and typescript. Run `npm install` to install dependencies.
+This project uses npm, Rust, and Tauri. Run `npm install` to install Node.js dependencies. Rust dependencies will be fetched automatically when building.
 
 ### Development application
 
-Run `npm start` to compile and start electron. Editing `app.ts` will require restarting, but you can edit any of the html views,
-`loading.html`, `logs.html`, `settings.html` and reload the electron window.
+Run `npm start` to compile and start the Tauri app in development mode. The frontend HTML files are in the `build/` directory, and the Rust backend is in `src-tauri/src/`.
 
 ### Build
 
-Run `npm run build` to build the project. The build artifacts will be stored in the `release/` directory.
+Run `npm run build` to build the project. The build artifacts will be stored in the `src-tauri/target/release/` directory.
 
 ### Debugging Jasper-UI
 
-Right click on any electron window and click `Inspect` to open the debugger.
+Right click on any Tauri window and click `Inspect` to open the debugger (in development mode).
