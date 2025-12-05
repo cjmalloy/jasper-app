@@ -43,7 +43,7 @@ try {
     pullClient: true,
     clientPort: '8082',
     clientTitle: 'Jasper',
-    databaseVersion: '16',
+    databaseVersion: '18',
     pullDatabase: true,
     dataDir: path.join(app.getPath('userData'), 'data'),
     storageDir: path.join(app.getPath('userData'), 'storage'),
@@ -354,7 +354,7 @@ async function getImageTags() {
   const versions = {
     server: [],
     client: [],
-    database: ['11', '12', '13', '14', '15', '16', '17'],
+    database: ['11', '12', '13', '14', '15', '16', '17', '18'],
     ssh: [],
   };
   return ghDockerTags('cjmalloy/jasper')

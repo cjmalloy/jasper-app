@@ -35,7 +35,7 @@ services:
       POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       POSTGRES_DB: jasper
     volumes:
-      - "${JASPER_DATA_DIR:?Must Set Data Dir}:/var/lib/postgresql/data"
+      - "${JASPER_DATA_DIR:?Must Set Data Dir}:/var/lib/postgresql"
   client:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
     pull_policy: "${JASPER_CLIENT_PULL:-missing}"
