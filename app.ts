@@ -1,7 +1,18 @@
 import axios, { AxiosHeaders } from 'axios';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeImage,
+  screen,
+  shell,
+  systemPreferences,
+  Tray
+} from 'electron';
 import contextMenu from 'electron-context-menu';
 import log from 'electron-log';
 import pkg from 'electron-updater';
@@ -464,6 +475,8 @@ app.on('ready', () => {
   startServer();
   createMainWindow(true)
     .then(() => checkUpdates());
+  systemPreferences.askForMediaAccess('camera');
+  systemPreferences.askForMediaAccess('microphone');
 });
 
 app.on('activate', () => {
