@@ -475,8 +475,10 @@ app.on('ready', () => {
   startServer();
   createMainWindow(true)
     .then(() => checkUpdates());
-  systemPreferences.askForMediaAccess('camera');
-  systemPreferences.askForMediaAccess('microphone');
+  if (process.platform === 'darwin') {
+    systemPreferences.askForMediaAccess('camera');
+    systemPreferences.askForMediaAccess('microphone');
+  }
 });
 
 app.on('activate', () => {
