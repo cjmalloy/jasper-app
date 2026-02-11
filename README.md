@@ -7,9 +7,10 @@ Desktop app for [Jasper KM](https://github.com/cjmalloy/jasper). Uses electron t
 Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/
 
 ### macOs 15
-To allow on macOs 15 you must remove the quarantine flag:
+To allow on macOs 15 you must remove the quarantine flag and re-sign:
 ```shell
 xattr -d com.apple.quarantine /Applications/Jasper.app
+codesign --force --deep --sign - /Applications/Jasper.app
 ```
 
 ## Troubleshooting
