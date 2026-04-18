@@ -386,7 +386,7 @@ function ghDockerTags(repo: string) {
     .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
 }
 
-function dockerTags(host: string, path: string, token: string, tags = [], page = 0) {
+function dockerTags(host: string, path: string, token: string, tags: string[] = [], page = 0) {
   return axios.get(host + path, {headers: {'Authorization': 'Bearer ' + token}})
     .catch(err => {
       console.log('Can\'t get tag list ' + path);

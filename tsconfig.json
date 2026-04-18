@@ -2,6 +2,9 @@
   "compilerOptions": {
     "sourceMap": true,
     "declaration": false,
+    "ignoreDeprecations": "6.0",
+    "noImplicitAny": false,
+    "skipLibCheck": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
