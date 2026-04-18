@@ -365,7 +365,7 @@ function createSettingsWindow() {
   });
 }
 
-let _imageTags: ImageTags | null;
+let _imageTags: ImageTags | null = null;
 async function getImageTags(): Promise<ImageTags> {
   if (_imageTags) return _imageTags;
   const versions: ImageTags = {
