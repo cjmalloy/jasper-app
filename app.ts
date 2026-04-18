@@ -37,10 +37,10 @@ contextMenu({
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 type ImageTags = {
-  server: string[],
-  client: string[],
-  database: string[],
-  ssh: string[],
+  server: string[];
+  client: string[];
+  database: string[];
+  ssh: string[];
 };
 
 let data: any = {};
