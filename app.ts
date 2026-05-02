@@ -36,6 +36,12 @@ contextMenu({
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+type ImageTags = {
+  server: string[];
+  client: string[];
+  database: string[];
+  ssh: string[];
+};
 
 let data: any = {};
 try {
@@ -106,7 +112,7 @@ function dc(command: string) {
     ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
     command,
   ]);
-  const sendLogs = data => {
+  const sendLogs = (data: Buffer | string) => {
     data = `${data}`.trim().replace('\n\n', '\n');
     console.log(data);
     const log = ansi.ansi_to_html(data)
@@ -124,7 +130,7 @@ function dc(command: string) {
   return dc;
 }
 
-function getToken(userTag, secret) {
+function getToken(userTag: string, secret: string) {
   const header = {
     alg: 'HS512',
     typ: 'JWT'
@@ -308,7 +314,7 @@ function createWindow(config: any) {
 function createMainWindow(showLoading = false) {
   if (!showLoading && win && !win.isDestroyed()) {
     win.show();
-    return;
+    return Promise.resolve();
   }
   if (!win || win.isDestroyed()) {
     win = createWindow(data);
@@ -359,25 +365,25 @@ function createSettingsWindow() {
   });
 }
 
-let _imageTags;
-async function getImageTags() {
+let _imageTags: ImageTags | null = null;
+async function getImageTags(): Promise<ImageTags> {
   if (_imageTags) return _imageTags;
-  const versions = {
+  const versions: ImageTags = {
     server: [],
     client: [],
     database: ['11', '12', '13', '14', '15', '16', '17', '18'],
     ssh: [],
   };
   return ghDockerTags('cjmalloy/jasper')
-    .then(tags => versions.server = tags.filter(t => t.startsWith('v')))
+    .then(tags => versions.server = tags.filter((t: string) => t.startsWith('v')))
     .then(() => ghDockerTags('cjmalloy/jasper-ui'))
-    .then(tags => versions.client = tags.filter(t => t.startsWith('v')))
+    .then(tags => versions.client = tags.filter((t: string) => t.startsWith('v')))
     .then(() => ghDockerTags('cjmalloy/jasper-ssh'))
-    .then(tags => versions.ssh = tags.filter(t => t.startsWith('v')))
+    .then(tags => versions.ssh = tags.filter((t: string) => t.startsWith('v')))
     .then(() => _imageTags = versions);
 }
 
-function ghDockerTags(repo: string) {
+function ghDockerTags(repo: string): Promise<string[]> {
   return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
     .catch(err => {
       console.log('Can\'t get fake login token: ' + repo);
@@ -386,7 +392,7 @@ function ghDockerTags(repo: string) {
     .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
 }
 
-function dockerTags(host: string, path: string, token: string, tags = [], page = 0) {
+function dockerTags(host: string, path: string, token: string, tags: string[] = [], page = 0): Promise<string[]> {
   return axios.get(host + path, {headers: {'Authorization': 'Bearer ' + token}})
     .catch(err => {
       console.log('Can\'t get tag list ' + path);
@@ -422,23 +428,23 @@ function createTray() {
   return tray;
 }
 
-function wait(ms) {
+function wait(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitFor200(url, firstDelay = 100) {
+async function waitFor200(url: string, firstDelay = 100): Promise<null> {
   return axios.get(url)
     .catch(() => ({status: 0}))
     .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
 }
 
-async function waitForHealth(url, firstDelay = 100) {
+async function waitForHealth(url: string, firstDelay = 100): Promise<null> {
   return axios.get(url)
     .catch(() => ({data: {}}))
     .then(res => res.data.status === 'UP' ? null : wait(firstDelay).then(() => waitForHealth(url, 100)));
 }
 
-function updateSettings(value) {
+function updateSettings(value: any) {
   data = {
     ...data,
     ...value,
@@ -453,7 +459,7 @@ function updateSettings(value) {
   });
 }
 
-function patchSettings(name, value) {
+function patchSettings(name: string, value: any) {
   data[name] = value;
   writeEnv();
   writeData();
