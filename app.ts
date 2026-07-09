@@ -19,7 +19,6 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
 import * as path from 'path';
-import { AnsiUp } from 'ansi_up';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -97,7 +96,6 @@ function notify(command: string) {
   });
 }
 
-const ansi = new AnsiUp();
 function dc(command: string) {
   const dc = spawn('docker', [
     'compose',
@@ -107,16 +105,13 @@ function dc(command: string) {
     command,
   ]);
   const sendLogs = data => {
-    data = `${data}`.trim().replace('\n\n', '\n');
-    console.log(data);
-    const log = ansi.ansi_to_html(data)
-      .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
-      .replace(/  /g, ' &nbsp;');
+    data = `${data}`;
+    console.log(data.trim());
     if (win && !win.isDestroyed() && !firstLoad) {
-      win.webContents.send('stream-logs', log);
+      win.webContents.send('stream-logs', data);
     }
     if (logs && !logs.isDestroyed()) {
-      logs.webContents.send('stream-logs', log);
+      logs.webContents.send('stream-logs', data);
     }
   };
   dc.stdout.on('data', sendLogs);

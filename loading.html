@@ -49,11 +49,12 @@
   <script>
     function div(text) {
       const div = document.createElement('div');
-      div.setHTMLUnsafe(text);
+      div.innerText = text;
       return div;
     }
     window.electronAPI.streamLogs((event, data) => {
-      const lines = data.split(/[\r\n]+/);
+      // Strip ANSI escape sequences for the plain-text loading log
+      const lines = data.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '').split(/[\r\n]+/);
       for (let line of lines) {
         line = line.trim();
         if (!line) continue;
