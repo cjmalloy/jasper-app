@@ -1,5 +1,4 @@
 import axios, { AxiosHeaders } from 'axios';
-import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import {
   app,
@@ -18,6 +17,8 @@ import log from 'electron-log';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
+import { EventEmitter } from 'events';
+import { spawn as ptySpawn } from 'node-pty';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -100,17 +101,9 @@ const maxLogBuffer = 512 * 1024;
 let logBuffer = '';
 const logSubscribers = new WeakSet();
 function dc(command: string) {
-  const dc = spawn('docker', [
-    'compose',
-    // Disable ANSI colors and cursor-rewriting progress output so logs
-    // render cleanly (no background colors or garbled rewrites).
-    '--ansi', 'never',
-    '--progress', 'plain',
-    '-f', serverConfig,
-    ...data.cfToken ? ['--profile', 'cf'] : [],
-    ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-    command,
-  ]);
+  // Spawn docker compose in a pseudo-TTY so it detects a terminal and
+  // emits ANSI colors and cursor-rewriting progress output for xterm.js.
+  const emitter = new EventEmitter();
   const sendLogs = data => {
     data = `${data}`;
     console.log(data.trim());
@@ -124,9 +117,29 @@ function dc(command: string) {
       logs.webContents.send('stream-logs', data);
     }
   };
-  dc.stdout.on('data', sendLogs);
-  dc.stderr.on('data', sendLogs);
-  return dc;
+  try {
+    const pty = ptySpawn('docker', [
+      'compose',
+      '-f', serverConfig,
+      ...data.cfToken ? ['--profile', 'cf'] : [],
+      ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
+      command,
+    ], {
+      name: 'xterm-color',
+      cols: 120,
+      rows: 30,
+      env: process.env as { [key: string]: string },
+    });
+    pty.onData(sendLogs);
+    pty.onExit(({ exitCode, signal }) => {
+      emitter.emit('exit', exitCode, signal ?? null);
+      emitter.emit('close', exitCode, signal ?? null);
+    });
+  } catch (err) {
+    // Emit asynchronously so callers can attach 'error' listeners first.
+    setImmediate(() => emitter.emit('error', err));
+  }
+  return emitter;
 }
 
 function getToken(userTag, secret) {
