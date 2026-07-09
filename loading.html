@@ -50,8 +50,7 @@
     }
   </style>
   <script>
-    // Register the listener immediately so no logs are dropped even if
-    // terminal setup below fails or is delayed.
+    // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
     window.electronAPI.streamLogs((event, data) => {
@@ -90,8 +89,7 @@
     sendSize();
   });
   term = t;
-  // Push the cursor to the last row so logs are bottom-aligned and
-  // scroll upwards as new lines arrive.
+  // Push the cursor to the last row so logs are bottom-aligned
   if (t.rows > 1) t.write('\n'.repeat(t.rows - 1));
   while (pending.length) term.write(pending.shift());
   term.scrollToBottom();

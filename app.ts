@@ -116,18 +116,12 @@ function resizePtys(size) {
   }
 }
 function dc(command: string) {
-  // Spawn docker compose in a pseudo-TTY so it detects a terminal and
-  // emits ANSI colors and cursor-rewriting progress output for xterm.js.
-  // Note: resizing the terminal mid-rewrite may leave stale text above;
-  // this is a known limitation of cursor-rewriting output and accepted.
+  // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
   const sendLogs = (data: string) => {
-    // Write the raw PTY stream so ANSI rewrites render properly in the
-    // terminal without extra newlines from per-chunk logging.
     process.stdout.write(data);
     logBuffer = (logBuffer + data).slice(-maxLogBuffer);
-    // Only send live logs to windows that have subscribed via 'fetch-logs';
-    // the full buffer is replayed when they subscribe.
+    // Only send live logs to subscribers; the buffer is replayed on subscribe
     if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
       win.webContents.send('stream-logs', data);
     }
@@ -146,8 +140,7 @@ function dc(command: string) {
       name: 'xterm-color',
       cols: ptySize.cols,
       rows: ptySize.rows,
-      // Disable the interactive "v View in Docker Desktop ..." menu that
-      // compose shows when attached to a TTY.
+      // Disable the interactive "v View in Docker Desktop ..." menu
       env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
     });
     livePtys.add(pty);
@@ -158,7 +151,7 @@ function dc(command: string) {
       emitter.emit('close', exitCode, signal ?? null);
     });
   } catch (err) {
-    // Emit asynchronously so callers can attach 'error' listeners first.
+    // Emit asynchronously so callers can attach 'error' listeners first
     setImmediate(() => emitter.emit('error', err));
   }
   return emitter;
@@ -451,7 +444,6 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
-  // When the logs window closes, fall back to the loading page's size.
   logs.on('closed', () => resizePtys(winPtySize));
 }
 
@@ -517,7 +509,7 @@ app.on('ready', () => {
     const wc = event.sender;
     if (!logSubscribers.has(wc)) {
       logSubscribers.add(wc);
-      // Unsubscribe on navigation or reload; the new page must fetch again.
+      // Unsubscribe on reload; the new page must fetch again
       wc.on('did-start-loading', () => logSubscribers.delete(wc));
     }
     if (logBuffer) wc.send('stream-logs', logBuffer);
@@ -526,7 +518,6 @@ app.on('ready', () => {
     if (!size?.cols || !size?.rows) return;
     const logsOpen = logs && !logs.isDestroyed();
     if (logsOpen && event.sender === logs.webContents) {
-      // The logs window gets priority over the loading page.
       resizePtys(size);
     } else {
       winPtySize = size;

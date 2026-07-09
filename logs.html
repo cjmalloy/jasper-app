@@ -24,8 +24,7 @@
     }
   </style>
   <script>
-    // Register the listener immediately so no logs are dropped even if
-    // terminal setup below fails or is delayed.
+    // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
     window.electronAPI.streamLogs((event, data) => {
@@ -42,7 +41,7 @@
 <body>
 <div id="terminal"></div>
 <script>
-  // Match the OS color scheme, as the old HTML log view did.
+  // Match the OS color scheme
   const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
   const getTheme = () => darkScheme.matches ? {
     background: '#242424',
