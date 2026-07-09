@@ -31,6 +31,11 @@
     }
     #log-container .xterm-viewport {
       overflow-y: hidden;
+      background-color: transparent !important;
+    }
+    #log-container .xterm,
+    #log-container .xterm-screen {
+      background-color: transparent !important;
     }
     @keyframes fadein {
       from {
@@ -80,6 +85,9 @@
   fitAddon.fit();
   window.addEventListener('resize', () => fitAddon.fit());
   term = t;
+  // Push the cursor to the last row so logs are bottom-aligned and
+  // scroll upwards as new lines arrive.
+  if (t.rows > 1) t.write('\n'.repeat(t.rows - 1));
   while (pending.length) term.write(pending.shift());
   term.scrollToBottom();
   window.electronAPI.fetchLogs();

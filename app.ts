@@ -106,7 +106,9 @@ function dc(command: string) {
   const emitter = new EventEmitter();
   const sendLogs = data => {
     data = `${data}`;
-    console.log(data.trim());
+    // Write the raw PTY stream so ANSI rewrites render properly in the
+    // terminal without extra newlines from per-chunk logging.
+    process.stdout.write(data);
     logBuffer = (logBuffer + data).slice(-maxLogBuffer);
     // Only send live logs to windows that have subscribed via 'fetch-logs';
     // the full buffer is replayed when they subscribe.
@@ -128,7 +130,9 @@ function dc(command: string) {
       name: 'xterm-color',
       cols: 120,
       rows: 30,
-      env: process.env as { [key: string]: string },
+      // Disable the interactive "v View in Docker Desktop ..." menu that
+      // compose shows when attached to a TTY.
+      env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
     });
     pty.onData(sendLogs);
     pty.onExit(({ exitCode, signal }) => {
