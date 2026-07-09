@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for Jasper windows",
+  "windows": ["main", "loading", "logs", "settings"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:default"
+  ]
+}
