@@ -5,7 +5,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper Logs</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="vendor/xterm.css">
   <style>
     html, body {
       margin: 0;
@@ -17,13 +17,26 @@
       height: 100%;
     }
   </style>
-  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
-  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script>
+    // Register the listener immediately so no logs are dropped even if
+    // terminal setup below fails or is delayed.
+    let term = null;
+    const pending = [];
+    window.electronAPI.streamLogs((event, data) => {
+      if (term) {
+        term.write(data);
+      } else {
+        pending.push(data);
+      }
+    });
+  </script>
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/addon-fit.js"></script>
 </head>
 <body>
 <div id="terminal"></div>
 <script>
-  const term = new Terminal({
+  const t = new Terminal({
     disableStdin: true,
     convertEol: true,
     scrollback: 10000,
@@ -34,11 +47,13 @@
     },
   });
   const fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
-  term.open(document.getElementById('terminal'));
+  t.loadAddon(fitAddon);
+  t.open(document.getElementById('terminal'));
   fitAddon.fit();
   window.addEventListener('resize', () => fitAddon.fit());
-  window.electronAPI.streamLogs((event, data) => term.write(data));
+  term = t;
+  while (pending.length) term.write(pending.shift());
+  window.electronAPI.fetchLogs();
 </script>
 </body>
 </html>

@@ -98,6 +98,7 @@ function notify(command: string) {
 
 const maxLogBuffer = 512 * 1024;
 let logBuffer = '';
+const logSubscribers = new WeakSet();
 function dc(command: string) {
   const dc = spawn('docker', [
     'compose',
@@ -110,10 +111,12 @@ function dc(command: string) {
     data = `${data}`;
     console.log(data.trim());
     logBuffer = (logBuffer + data).slice(-maxLogBuffer);
-    if (win && !win.isDestroyed() && !firstLoad) {
+    // Only send live logs to windows that have subscribed via 'fetch-logs';
+    // the full buffer is replayed when they subscribe.
+    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
       win.webContents.send('stream-logs', data);
     }
-    if (logs && !logs.isDestroyed()) {
+    if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
       logs.webContents.send('stream-logs', data);
     }
   };
@@ -318,11 +321,6 @@ function createMainWindow(showLoading = false) {
     });
   }
   if (showLoading) {
-    win.webContents.once('did-finish-load', () => {
-      if (win && !win.isDestroyed() && !firstLoad && logBuffer) {
-        win.webContents.send('stream-logs', logBuffer);
-      }
-    });
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   return waitFor200(getEntry(), showLoading ? 5000 : 100)
@@ -413,11 +411,6 @@ function createLogsWindow() {
   }
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
-  logs.webContents.once('did-finish-load', () => {
-    if (logs && !logs.isDestroyed() && logBuffer) {
-      logs.webContents.send('stream-logs', logBuffer);
-    }
-  });
   logs.loadFile(path.join(__dirname, 'logs.html'));
 }
 
@@ -479,6 +472,15 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
+  ipcMain.on('fetch-logs', event => {
+    const wc = event.sender;
+    if (!logSubscribers.has(wc)) {
+      logSubscribers.add(wc);
+      // Unsubscribe on navigation or reload; the new page must fetch again.
+      wc.on('did-start-loading', () => logSubscribers.delete(wc));
+    }
+    if (logBuffer) wc.send('stream-logs', logBuffer);
+  });
   tray = createTray();
   startServer();
   createMainWindow(true)
