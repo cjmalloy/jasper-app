@@ -15,7 +15,9 @@
     "tsc": "tsc -p tsconfig.json",
     "start": "npm run tsc && electron app.js",
     "build": "npm run tsc && electron-builder build",
-    "ci": "npm run tsc && electron-builder build --publish never"
+    "ci": "npm run tsc && electron-builder build --publish never",
+    "build:ui": "node build-ui.mjs",
+    "tauri": "tauri"
   },
   "build": {
     "asar": false,
@@ -60,6 +62,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@tauri-apps/cli": "^2.9.6",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
     "electron-debug": "^4.1.0",

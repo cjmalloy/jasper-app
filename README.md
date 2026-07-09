@@ -28,6 +28,18 @@ Run `npm start` to compile and start electron. Editing `app.ts` will require res
 
 Run `npm run build` to build the project. The build artifacts will be stored in the `release/` directory.
 
+### Tauri port (in progress)
+
+A Tauri v2 port of the Electron main process lives in `src-tauri/`. It requires a
+[Rust toolchain](https://www.rust-lang.org/tools/install) (and the
+[Tauri Linux system dependencies](https://tauri.app/start/prerequisites/) on Linux).
+
+- Run `npm run tauri dev` to build and start the Tauri app.
+- Run `npm run tauri build` to produce native bundles in `src-tauri/target/release/bundle/`.
+
+The HTML views are shared between both apps: `tauri-shim.js` provides the same
+`window.electronAPI` bridge as `preload.js` when running under Tauri.
+
 ### Debugging Jasper-UI
 
 Right click on any electron window and click `Inspect` to open the debugger.
