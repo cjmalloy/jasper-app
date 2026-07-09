@@ -11,7 +11,13 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: #242424;
+      background-color: white;
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body {
+        background-color: #242424;
+        color-scheme: dark;
+      }
     }
     #terminal {
       height: 100%;
@@ -36,16 +42,25 @@
 <body>
 <div id="terminal"></div>
 <script>
+  // Match the OS color scheme, as the old HTML log view did.
+  const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const getTheme = () => darkScheme.matches ? {
+    background: '#242424',
+    foreground: '#c9c9c9',
+  } : {
+    background: 'white',
+    foreground: '#242424',
+    cursor: '#242424',
+    selectionBackground: '#b5d5ff',
+  };
   const t = new Terminal({
     disableStdin: true,
     convertEol: true,
     scrollback: 10000,
     fontFamily: 'monospace',
-    theme: {
-      background: '#242424',
-      foreground: '#c9c9c9',
-    },
+    theme: getTheme(),
   });
+  darkScheme.addEventListener('change', () => t.options.theme = getTheme());
   const fitAddon = new FitAddon.FitAddon();
   t.loadAddon(fitAddon);
   t.open(document.getElementById('terminal'));
