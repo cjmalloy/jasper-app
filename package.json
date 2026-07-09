@@ -70,11 +70,11 @@
     "wait-on": "^9.0.10"
   },
   "dependencies": {
+    "@lydell/node-pty": "^1.1.0",
     "axios": "^1.18.1",
     "electron-context-menu": "^4.1.2",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
-    "jquery": "^4.0.0",
-    "node-pty": "^1.1.0"
+    "jquery": "^4.0.0"
   }
 }

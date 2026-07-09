@@ -18,7 +18,7 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
 import { EventEmitter } from 'events';
-import { spawn as ptySpawn } from 'node-pty';
+import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
