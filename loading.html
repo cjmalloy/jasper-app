@@ -5,6 +5,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
     body {
       /* Prevent bright flash while loading */
@@ -16,6 +17,7 @@
       animation: fadein 5s ease-in-out;
       animation-iteration-count: infinite;
       height: 100vh;
+      margin: 0;
       overflow: hidden;
     }
     #log-container {
@@ -27,12 +29,13 @@
       overflow: hidden;
       -webkit-mask-image: linear-gradient(to bottom, transparent, #FFF 10%, #FFF 100%);
     }
-    #logs {
-      font-family: monospace;
-      position: absolute;
-      bottom: 0;
-      color: #AAA;
-      white-space: nowrap;
+    #log-container .xterm-viewport {
+      overflow-y: hidden;
+      background-color: transparent !important;
+    }
+    #log-container .xterm,
+    #log-container .xterm-screen {
+      background-color: transparent !important;
     }
     @keyframes fadein {
       from {
@@ -47,24 +50,50 @@
     }
   </style>
   <script>
-    function div(text) {
-      const div = document.createElement('div');
-      div.setHTMLUnsafe(text);
-      return div;
-    }
+    // Buffer logs until the terminal is ready so none are dropped
+    let term = null;
+    const pending = [];
     window.electronAPI.streamLogs((event, data) => {
-      const lines = data.split(/[\r\n]+/);
-      for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        document.getElementById('logs').appendChild(div(line));
+      if (term) {
+        term.write(data, () => term.scrollToBottom());
+      } else {
+        pending.push(data);
       }
     });
   </script>
+  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 </head>
 <body>
-<div id="log-container">
-  <div id="logs"></div>
-</div>
+<div id="log-container"></div>
+<script>
+  const t = new Terminal({
+    disableStdin: true,
+    convertEol: true,
+    scrollback: 1000,
+    fontFamily: 'monospace',
+    allowTransparency: true,
+    theme: {
+      background: 'rgba(0, 0, 0, 0)',
+      foreground: '#AAA',
+    },
+  });
+  const fitAddon = new FitAddon.FitAddon();
+  t.loadAddon(fitAddon);
+  t.open(document.getElementById('log-container'));
+  fitAddon.fit();
+  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  sendSize();
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendSize();
+  });
+  term = t;
+  // Push the cursor to the last row so logs are bottom-aligned
+  if (t.rows > 1) t.write('\n'.repeat(t.rows - 1));
+  while (pending.length) term.write(pending.shift());
+  term.scrollToBottom();
+  window.electronAPI.fetchLogs();
+</script>
 </body>
 </html>
