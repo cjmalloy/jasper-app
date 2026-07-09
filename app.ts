@@ -117,13 +117,12 @@ function resizePtys(size) {
 }
 function dc(command: string) {
   // Spawn docker compose in a pseudo-TTY so it detects a terminal and
-  // emits ANSI colors for xterm.js. Progress is forced to plain so the
-  // output is append-only: cursor-rewriting progress output goes stale
-  // when the terminal is resized mid-rewrite, leaving garbage on screen,
-  // while plain line-based output reflows cleanly.
+  // emits ANSI colors and cursor-rewriting progress output for xterm.js.
+  // Note: resizing the terminal mid-rewrite may leave stale text above;
+  // this is a known limitation of cursor-rewriting output and accepted.
   const emitter = new EventEmitter();
   const sendLogs = (data: string) => {
-    // Write the raw PTY stream so ANSI colors render properly in the
+    // Write the raw PTY stream so ANSI rewrites render properly in the
     // terminal without extra newlines from per-chunk logging.
     process.stdout.write(data);
     logBuffer = (logBuffer + data).slice(-maxLogBuffer);
@@ -139,7 +138,6 @@ function dc(command: string) {
   try {
     const pty = ptySpawn('docker', [
       'compose',
-      '--progress', 'plain',
       '-f', serverConfig,
       ...data.cfToken ? ['--profile', 'cf'] : [],
       ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
