@@ -104,8 +104,7 @@ function dc(command: string) {
   // Spawn docker compose in a pseudo-TTY so it detects a terminal and
   // emits ANSI colors and cursor-rewriting progress output for xterm.js.
   const emitter = new EventEmitter();
-  const sendLogs = data => {
-    data = `${data}`;
+  const sendLogs = (data: string) => {
     // Write the raw PTY stream so ANSI rewrites render properly in the
     // terminal without extra newlines from per-chunk logging.
     process.stdout.write(data);
