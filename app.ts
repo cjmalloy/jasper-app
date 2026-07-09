@@ -520,6 +520,15 @@ app.on('ready', () => {
     }
     if (logBuffer) wc.send('stream-logs', logBuffer);
   });
+  ipcMain.on('replay-logs', (event, rows) => {
+    // Resizing the terminal mid ANSI cursor-rewrite leaves stale text on
+    // screen, so reset the terminal and replay the buffer at the new size.
+    // Send the reset over the same channel as live logs to avoid races.
+    const wc = event.sender;
+    if (!logSubscribers.has(wc)) return;
+    const padding = Number.isInteger(rows) && rows > 1 ? '\n'.repeat(rows - 1) : '';
+    wc.send('stream-logs', '\x1bc' + padding + logBuffer);
+  });
   ipcMain.on('resize-pty', (event, size) => {
     if (!size?.cols || !size?.rows) return;
     const logsOpen = logs && !logs.isDestroyed();

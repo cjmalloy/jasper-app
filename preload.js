@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   fetchLogs: () => ipcRenderer.send('fetch-logs'),
   resizePty: (size) => ipcRenderer.send('resize-pty', size),
+  replayLogs: (rows) => ipcRenderer.send('replay-logs', rows),
   fetchSettings: () => ipcRenderer.send('fetch-settings'),
   saveSettings: (settings) => ipcRenderer.send('settings-value', settings),
   patchSettings: (patch) => ipcRenderer.send('settings-patch', patch),

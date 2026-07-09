@@ -52,9 +52,16 @@
   fitAddon.fit();
   const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
   sendSize();
+  let replayTimer = null;
   window.addEventListener('resize', () => {
+    const { cols, rows } = t;
     fitAddon.fit();
     sendSize();
+    if (t.cols === cols && t.rows === rows) return;
+    // Reflowing mid ANSI cursor-rewrite can leave stale text above, so
+    // replay the log buffer from a fresh terminal once resizing settles.
+    clearTimeout(replayTimer);
+    replayTimer = setTimeout(() => window.electronAPI.replayLogs(), 250);
   });
   term = t;
   while (pending.length) term.write(pending.shift());
