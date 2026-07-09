@@ -102,6 +102,10 @@ const logSubscribers = new WeakSet();
 function dc(command: string) {
   const dc = spawn('docker', [
     'compose',
+    // Disable ANSI colors and cursor-rewriting progress output so logs
+    // render cleanly (no background colors or garbled rewrites).
+    '--ansi', 'never',
+    '--progress', 'plain',
     '-f', serverConfig,
     ...data.cfToken ? ['--profile', 'cf'] : [],
     ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
