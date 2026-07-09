@@ -96,6 +96,8 @@ function notify(command: string) {
   });
 }
 
+const maxLogBuffer = 512 * 1024;
+let logBuffer = '';
 function dc(command: string) {
   const dc = spawn('docker', [
     'compose',
@@ -107,6 +109,7 @@ function dc(command: string) {
   const sendLogs = data => {
     data = `${data}`;
     console.log(data.trim());
+    logBuffer = (logBuffer + data).slice(-maxLogBuffer);
     if (win && !win.isDestroyed() && !firstLoad) {
       win.webContents.send('stream-logs', data);
     }
@@ -315,6 +318,11 @@ function createMainWindow(showLoading = false) {
     });
   }
   if (showLoading) {
+    win.webContents.once('did-finish-load', () => {
+      if (win && !win.isDestroyed() && !firstLoad && logBuffer) {
+        win.webContents.send('stream-logs', logBuffer);
+      }
+    });
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   return waitFor200(getEntry(), showLoading ? 5000 : 100)
@@ -405,6 +413,11 @@ function createLogsWindow() {
   }
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
+  logs.webContents.once('did-finish-load', () => {
+    if (logs && !logs.isDestroyed() && logBuffer) {
+      logs.webContents.send('stream-logs', logBuffer);
+    }
+  });
   logs.loadFile(path.join(__dirname, 'logs.html'));
 }
 

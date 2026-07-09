@@ -5,6 +5,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
     body {
       /* Prevent bright flash while loading */
@@ -16,6 +17,7 @@
       animation: fadein 5s ease-in-out;
       animation-iteration-count: infinite;
       height: 100vh;
+      margin: 0;
       overflow: hidden;
     }
     #log-container {
@@ -27,12 +29,8 @@
       overflow: hidden;
       -webkit-mask-image: linear-gradient(to bottom, transparent, #FFF 10%, #FFF 100%);
     }
-    #logs {
-      font-family: monospace;
-      position: absolute;
-      bottom: 0;
-      color: #AAA;
-      white-space: nowrap;
+    #log-container .xterm-viewport {
+      overflow-y: hidden;
     }
     @keyframes fadein {
       from {
@@ -46,26 +44,31 @@
       }
     }
   </style>
-  <script>
-    function div(text) {
-      const div = document.createElement('div');
-      div.innerText = text;
-      return div;
-    }
-    window.electronAPI.streamLogs((event, data) => {
-      // Strip ANSI escape sequences for the plain-text loading log
-      const lines = data.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '').split(/[\r\n]+/);
-      for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        document.getElementById('logs').appendChild(div(line));
-      }
-    });
-  </script>
+  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 </head>
 <body>
-<div id="log-container">
-  <div id="logs"></div>
-</div>
+<div id="log-container"></div>
+<script>
+  const term = new Terminal({
+    disableStdin: true,
+    convertEol: true,
+    scrollback: 1000,
+    fontFamily: 'monospace',
+    allowTransparency: true,
+    theme: {
+      background: 'rgba(0, 0, 0, 0)',
+      foreground: '#AAA',
+    },
+  });
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('log-container'));
+  fitAddon.fit();
+  window.addEventListener('resize', () => fitAddon.fit());
+  window.electronAPI.streamLogs((event, data) => {
+    term.write(data, () => term.scrollToBottom());
+  });
+</script>
 </body>
 </html>
