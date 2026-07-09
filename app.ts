@@ -100,6 +100,21 @@ function notify(command: string) {
 const maxLogBuffer = 512 * 1024;
 let logBuffer = '';
 const logSubscribers = new WeakSet();
+const livePtys = new Set<{ resize: (cols: number, rows: number) => void }>();
+let ptySize = { cols: 120, rows: 30 };
+let winPtySize = null;
+function resizePtys(size) {
+  if (!size?.cols || !size?.rows) return;
+  if (size.cols === ptySize.cols && size.rows === ptySize.rows) return;
+  ptySize = { cols: size.cols, rows: size.rows };
+  for (const pty of livePtys) {
+    try {
+      pty.resize(ptySize.cols, ptySize.rows);
+    } catch (err) {
+      console.log('Failed to resize pty: ' + err);
+    }
+  }
+}
 function dc(command: string) {
   // Spawn docker compose in a pseudo-TTY so it detects a terminal and
   // emits ANSI colors and cursor-rewriting progress output for xterm.js.
@@ -127,14 +142,16 @@ function dc(command: string) {
       command,
     ], {
       name: 'xterm-color',
-      cols: 120,
-      rows: 30,
+      cols: ptySize.cols,
+      rows: ptySize.rows,
       // Disable the interactive "v View in Docker Desktop ..." menu that
       // compose shows when attached to a TTY.
       env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
     });
+    livePtys.add(pty);
     pty.onData(sendLogs);
     pty.onExit(({ exitCode, signal }) => {
+      livePtys.delete(pty);
       emitter.emit('exit', exitCode, signal ?? null);
       emitter.emit('close', exitCode, signal ?? null);
     });
@@ -432,6 +449,8 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
+  // When the logs window closes, fall back to the loading page's size.
+  logs.on('closed', () => resizePtys(winPtySize));
 }
 
 function createTray() {
@@ -500,6 +519,17 @@ app.on('ready', () => {
       wc.on('did-start-loading', () => logSubscribers.delete(wc));
     }
     if (logBuffer) wc.send('stream-logs', logBuffer);
+  });
+  ipcMain.on('resize-pty', (event, size) => {
+    if (!size?.cols || !size?.rows) return;
+    const logsOpen = logs && !logs.isDestroyed();
+    if (logsOpen && event.sender === logs.webContents) {
+      // The logs window gets priority over the loading page.
+      resizePtys(size);
+    } else {
+      winPtySize = size;
+      if (!logsOpen) resizePtys(size);
+    }
   });
   tray = createTray();
   startServer();

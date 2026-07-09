@@ -50,7 +50,12 @@
   t.loadAddon(fitAddon);
   t.open(document.getElementById('terminal'));
   fitAddon.fit();
-  window.addEventListener('resize', () => fitAddon.fit());
+  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  sendSize();
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendSize();
+  });
   term = t;
   while (pending.length) term.write(pending.shift());
   window.electronAPI.fetchLogs();

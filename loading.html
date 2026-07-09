@@ -83,7 +83,12 @@
   t.loadAddon(fitAddon);
   t.open(document.getElementById('log-container'));
   fitAddon.fit();
-  window.addEventListener('resize', () => fitAddon.fit());
+  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  sendSize();
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendSize();
+  });
   term = t;
   // Push the cursor to the last row so logs are bottom-aligned and
   // scroll upwards as new lines arrive.
