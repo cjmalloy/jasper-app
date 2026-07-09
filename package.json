@@ -44,6 +44,7 @@
         "NSCameraUsageDescription": "Camera Required for uploading photos and Video Calls"
       },
       "entitlements": "build/entitlements.mac.plist",
+      "x64ArchFiles": "**/node_modules/@lydell/node-pty-darwin-*/**",
       "target": {
         "target": "dmg",
         "arch": [
