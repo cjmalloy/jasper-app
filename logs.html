@@ -5,40 +5,74 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper Logs</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
-    body {
-      font-family: monospace;
-      white-space: nowrap;
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: white;
     }
     @media (prefers-color-scheme: dark) {
-      body {
+      html, body {
         background-color: #242424;
-        color: #c9c9c9;
         color-scheme: dark;
       }
     }
+    #terminal {
+      height: 100%;
+    }
   </style>
   <script>
-    let followLogs = true;
-    function div(text) {
-      const div = document.createElement('div');
-      div.setHTMLUnsafe(text);
-      return div;
-    }
+    // Buffer logs until the terminal is ready so none are dropped
+    let term = null;
+    const pending = [];
     window.electronAPI.streamLogs((event, data) => {
-      followLogs = window.scrollY >= (document.body.scrollHeight - window.innerHeight - 20);
-      const lines = data.split(/[\r\n]+/);
-      for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        document.getElementById('logs').appendChild(div(line));
-      }
-      if (followLogs) {
-        window.scrollTo(0, document.body.scrollHeight);
+      if (term) {
+        term.write(data);
+      } else {
+        pending.push(data);
       }
     });
   </script>
+  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 </head>
-<body id="logs">
+<body>
+<div id="terminal"></div>
+<script>
+  // Match the OS color scheme
+  const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const getTheme = () => darkScheme.matches ? {
+    background: '#242424',
+    foreground: '#c9c9c9',
+  } : {
+    background: 'white',
+    foreground: '#242424',
+    cursor: '#242424',
+    selectionBackground: '#b5d5ff',
+  };
+  const t = new Terminal({
+    disableStdin: true,
+    convertEol: true,
+    scrollback: 10000,
+    fontFamily: 'monospace',
+    theme: getTheme(),
+  });
+  darkScheme.addEventListener('change', () => t.options.theme = getTheme());
+  const fitAddon = new FitAddon.FitAddon();
+  t.loadAddon(fitAddon);
+  t.open(document.getElementById('terminal'));
+  fitAddon.fit();
+  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  sendSize();
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendSize();
+  });
+  term = t;
+  while (pending.length) term.write(pending.shift());
+  window.electronAPI.fetchLogs();
+</script>
 </body>
 </html>

@@ -1,5 +1,4 @@
 import axios, { AxiosHeaders } from 'axios';
-import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import {
   app,
@@ -18,8 +17,9 @@ import log from 'electron-log';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
+import { EventEmitter } from 'events';
+import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
-import { AnsiUp } from 'ansi_up';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -103,31 +103,65 @@ function notify(command: string) {
   });
 }
 
-const ansi = new AnsiUp();
-function dc(command: string) {
-  const dc = spawn('docker', [
-    'compose',
-    '-f', serverConfig,
-    ...data.cfToken ? ['--profile', 'cf'] : [],
-    ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-    command,
-  ]);
-  const sendLogs = (data: Buffer | string) => {
-    data = `${data}`.trim().replace('\n\n', '\n');
-    console.log(data);
-    const log = ansi.ansi_to_html(data)
-      .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
-      .replace(/  /g, ' &nbsp;');
-    if (win && !win.isDestroyed() && !firstLoad) {
-      win.webContents.send('stream-logs', log);
+const maxLogBuffer = 512 * 1024;
+let logBuffer = '';
+const logSubscribers = new WeakSet();
+const livePtys = new Set<{ resize: (cols: number, rows: number) => void }>();
+type PtySize = { cols: number, rows: number };
+let ptySize: PtySize = { cols: 120, rows: 30 };
+let winPtySize: PtySize | null = null;
+function resizePtys(size: PtySize | null) {
+  if (!size?.cols || !size?.rows) return;
+  if (size.cols === ptySize.cols && size.rows === ptySize.rows) return;
+  ptySize = { cols: size.cols, rows: size.rows };
+  for (const pty of livePtys) {
+    try {
+      pty.resize(ptySize.cols, ptySize.rows);
+    } catch (err) {
+      console.log('Failed to resize pty: ' + err);
     }
-    if (logs && !logs.isDestroyed()) {
-      logs.webContents.send('stream-logs', log);
+  }
+}
+function dc(command: string) {
+  // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
+  const emitter = new EventEmitter();
+  const sendLogs = (data: string) => {
+    process.stdout.write(data);
+    logBuffer = (logBuffer + data).slice(-maxLogBuffer);
+    // Only send live logs to subscribers; the buffer is replayed on subscribe
+    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
+      win.webContents.send('stream-logs', data);
+    }
+    if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
+      logs.webContents.send('stream-logs', data);
     }
   };
-  dc.stdout.on('data', sendLogs);
-  dc.stderr.on('data', sendLogs);
-  return dc;
+  try {
+    const pty = ptySpawn('docker', [
+      'compose',
+      '-f', serverConfig,
+      ...data.cfToken ? ['--profile', 'cf'] : [],
+      ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
+      command,
+    ], {
+      name: 'xterm-color',
+      cols: ptySize.cols,
+      rows: ptySize.rows,
+      // Disable the interactive "v View in Docker Desktop ..." menu
+      env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
+    });
+    livePtys.add(pty);
+    pty.onData(sendLogs);
+    pty.onExit(({ exitCode, signal }) => {
+      livePtys.delete(pty);
+      emitter.emit('exit', exitCode, signal ?? null);
+      emitter.emit('close', exitCode, signal ?? null);
+    });
+  } catch (err) {
+    // Emit asynchronously so callers can attach 'error' listeners first
+    setImmediate(() => emitter.emit('error', err));
+  }
+  return emitter;
 }
 
 function getToken(userTag: string, secret: string) {
@@ -417,6 +451,7 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
+  logs.on('closed', () => resizePtys(winPtySize));
 }
 
 function createTray() {
@@ -477,6 +512,25 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
+  ipcMain.on('fetch-logs', event => {
+    const wc = event.sender;
+    if (!logSubscribers.has(wc)) {
+      logSubscribers.add(wc);
+      // Unsubscribe on reload; the new page must fetch again
+      wc.on('did-start-loading', () => logSubscribers.delete(wc));
+    }
+    if (logBuffer) wc.send('stream-logs', logBuffer);
+  });
+  ipcMain.on('resize-pty', (event, size) => {
+    if (!size?.cols || !size?.rows) return;
+    const logsOpen = logs && !logs.isDestroyed();
+    if (logsOpen && event.sender === logs.webContents) {
+      resizePtys(size);
+    } else {
+      winPtySize = size;
+      if (!logsOpen) resizePtys(size);
+    }
+  });
   tray = createTray();
   startServer();
   createMainWindow(true)
