@@ -56,14 +56,12 @@ services:
     image: "ghcr.io/cjmalloy/jasper-ssh:${JASPER_SSH_VERSION:-latest}"
     pull_policy: "${JASPER_SSH_PULL:-missing}"
     restart: unless-stopped
-    healthcheck:
-      test: "/healthcheck.sh"
-      retries: 1
     ports:
       - "${JASPER_SSH_PORT:-8022}:22"
     environment:
       UPSTREAM: "http://web:80"
       TOKEN: "${JASPER_SSH_TOKEN}"
+      CONFIG_CHANGE_MODE: restart
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/secrets:/secrets"
