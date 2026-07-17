@@ -62,14 +62,21 @@
   darkScheme.addEventListener('change', () => t.options.theme = getTheme());
   const fitAddon = new FitAddon.FitAddon();
   t.loadAddon(fitAddon);
-  t.open(document.getElementById('terminal'));
+  const terminal = document.getElementById('terminal');
+  t.open(terminal);
   fitAddon.fit();
   const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
   sendSize();
-  window.addEventListener('resize', () => {
-    fitAddon.fit();
-    sendSize();
+  let resizeFrame = null;
+  const resizeObserver = new ResizeObserver(() => {
+    if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = null;
+      fitAddon.fit();
+      sendSize();
+    });
   });
+  resizeObserver.observe(terminal);
   term = t;
   while (pending.length) term.write(pending.shift());
   window.electronAPI.fetchLogs();
