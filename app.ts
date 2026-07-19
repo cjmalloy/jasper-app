@@ -48,7 +48,7 @@ try {
     pullServer: true,
     serverPort: '8081',
     serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
-    serverDefaultRole: 'ROLE_ANONYMOUS',
+    serverDefaultRole: 'ROLE_ADMIN',
     serverRam: '1g',
     clientVersion: 'v1.3',
     pullClient: true,
