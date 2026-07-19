@@ -56,6 +56,9 @@ services:
     image: "ghcr.io/cjmalloy/jasper-ssh:${JASPER_SSH_VERSION:-latest}"
     pull_policy: "${JASPER_SSH_PULL:-missing}"
     restart: unless-stopped
+    healthcheck:
+      test: "/healthcheck.sh"
+      retries: 1
     ports:
       - "${JASPER_SSH_PORT:-8022}:22"
     environment:
