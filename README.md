@@ -1,10 +1,14 @@
 # Jasper Desktop App
-Desktop app for [Jasper KM](https://github.com/cjmalloy/jasper). Uses electron to wrap a docker compose config.  
+Desktop app for [Jasper Knowledge Management](https://github.com/cjmalloy/jasper).  
 
-- [Downloads](https://github.com/cjmalloy/jasper-app/releases/latest)
+[![Windows](https://img.shields.io/badge/-Windows_x64-blue.svg?style=for-the-badge&logo=windows)](https://github.com/cjmalloy/jasper-app/releases/latest/download/Jasper-Setup-1.1.15.exe)
+[![Linux](https://img.shields.io/badge/-Linux-red.svg?style=for-the-badge&logo=linux)](https://github.com/cjmalloy/jasper-app/releases/latest/download/Jasper-1.1.15.AppImage)
+[![MacOS](https://img.shields.io/badge/-MacOS-lightblue.svg?style=for-the-badge&logo=apple)](https://github.com/cjmalloy/jasper-app/releases/latest/download/Jasper-1.1.15-universal.dmg)
+[![Source Tarball](https://img.shields.io/badge/-Source_tar-green.svg?style=for-the-badge)](https://github.com/cjmalloy/jasper-app/archive/refs/tags/v1.1.15.tar.gz)
+[![All versions](https://img.shields.io/badge/-All_Versions-lightgrey.svg?style=for-the-badge)](https://github.com/cjmalloy/jasper-app/releases)
 
 ## Prerequisites
-Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/
+Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/  
 
 ### macOs 15
 To allow on macOs 15 you must remove the quarantine flag and re-sign:
