@@ -482,6 +482,7 @@ function updateSettings(value) {
   firstLoad = false;
   if (win && !win.isDestroyed()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
+    win.webContents.clearHistory();
     win.show();
   }
   dc('down').once('close', () => {
