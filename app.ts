@@ -479,7 +479,11 @@ function updateSettings(value) {
   };
   writeEnv();
   writeData();
-  if (win && !win.isDestroyed()) win.hide();
+  firstLoad = false;
+  if (win && !win.isDestroyed()) {
+    win.loadFile(path.join(__dirname, 'loading.html'));
+    win.show();
+  }
   dc('down').once('close', () => {
     startServer();
     createMainWindow(true);
