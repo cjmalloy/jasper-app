@@ -352,7 +352,7 @@ function createMainWindow(showLoading = false) {
       return {action: 'deny'};
     });
   }
-  if (showLoading) {
+  if (showLoading && !win.webContents.getURL().endsWith('/loading.html')) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   return waitFor200(getEntry(), showLoading ? 5000 : 100)
@@ -479,7 +479,12 @@ function updateSettings(value) {
   };
   writeEnv();
   writeData();
-  if (win && !win.isDestroyed()) win.hide();
+  firstLoad = false;
+  if (win && !win.isDestroyed()) {
+    win.loadFile(path.join(__dirname, 'loading.html'));
+    win.webContents.clearHistory();
+    win.show();
+  }
   dc('down').once('close', () => {
     startServer();
     createMainWindow(true);
