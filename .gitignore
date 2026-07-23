@@ -8,6 +8,10 @@
 /release
 app.js
 app.js.map
+docker-compose.js
+docker-compose.js.map
+settings.js
+settings.js.map
 
 # Node
 /node_modules
