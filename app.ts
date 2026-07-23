@@ -1,5 +1,4 @@
 import axios, { AxiosHeaders } from 'axios';
-import * as crypto from 'crypto';
 import {
   app,
   BrowserWindow,
@@ -16,12 +15,11 @@ import contextMenu from 'electron-context-menu';
 import log from 'electron-log';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
-import * as fs from 'fs';
-import { EventEmitter } from 'events';
-import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { DockerCompose } from './docker-compose.js';
+import { loadSettings, saveSettings, Settings, writeEnvironment } from './settings.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -37,36 +35,7 @@ contextMenu({
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
-let data: any = {};
-try {
-  data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-} catch(e) {
-  data = {
-    locale: app.getLocale(),
-    autoUpdate: true,
-    serverVersion: 'v1.3',
-    pullServer: true,
-    serverPort: '8081',
-    serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
-    serverDefaultRole: 'ROLE_ADMIN',
-    serverRam: '1g',
-    clientVersion: 'v1.3',
-    pullClient: true,
-    clientPort: '8082',
-    clientTitle: 'Jasper',
-    databaseVersion: '18',
-    pullDatabase: true,
-    dataDir: path.join(app.getPath('userData'), 'data'),
-    storageDir: path.join(app.getPath('userData'), 'storage'),
-    sshVersion: 'v1.1',
-    pullSsh: true,
-    sshPort: '8022',
-    cfToken: '',
-    ngrokUrl: '',
-    ngrokToken: '',
-    showLogsOnStart: false,
-  };
-}
+let data: Settings = loadSettings(settingsPath, app.getPath('userData'), app.getLocale());
 
 const contextMenuTemplate = [
   {label: 'Show Window', click: () => createMainWindow(false)},
@@ -78,7 +47,7 @@ const contextMenuTemplate = [
 ];
 
 function writeData() {
-  fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2));
+  saveSettings(settingsPath, data);
 }
 
 function getEntry() {
@@ -90,7 +59,7 @@ function getServerHealthCheck() {
 }
 
 function notify(command: string) {
-  return dc(command).once('close', () => {
+  return dockerCompose.run(command).once('close', () => {
     if (settings && !settings.isDestroyed()) {
       settings.webContents.send('finished', command);
     }
@@ -100,117 +69,24 @@ function notify(command: string) {
 const maxLogBuffer = 512 * 1024;
 let logBuffer = '';
 const logSubscribers = new WeakSet();
-const livePtys = new Set<{ resize: (cols: number, rows: number) => void }>();
-let ptySize = { cols: 120, rows: 30 };
 let winPtySize = null;
-function resizePtys(size) {
-  if (!size?.cols || !size?.rows) return;
-  if (size.cols === ptySize.cols && size.rows === ptySize.rows) return;
-  ptySize = { cols: size.cols, rows: size.rows };
-  for (const pty of livePtys) {
-    try {
-      pty.resize(ptySize.cols, ptySize.rows);
-    } catch (err) {
-      console.log('Failed to resize pty: ' + err);
-    }
+const dockerCompose = new DockerCompose(serverConfig, () => data, output => {
+  process.stdout.write(output);
+  logBuffer = (logBuffer + output).slice(-maxLogBuffer);
+  if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
+    win.webContents.send('stream-logs', output);
   }
-}
-function dc(command: string) {
-  // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
-  const emitter = new EventEmitter();
-  const sendLogs = (data: string) => {
-    process.stdout.write(data);
-    logBuffer = (logBuffer + data).slice(-maxLogBuffer);
-    // Only send live logs to subscribers; the buffer is replayed on subscribe
-    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
-      win.webContents.send('stream-logs', data);
-    }
-    if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
-      logs.webContents.send('stream-logs', data);
-    }
-  };
-  try {
-    const pty = ptySpawn('docker', [
-      'compose',
-      '-f', serverConfig,
-      ...data.cfToken ? ['--profile', 'cf'] : [],
-      ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-      command,
-    ], {
-      name: 'xterm-color',
-      cols: ptySize.cols,
-      rows: ptySize.rows,
-      // Disable the interactive "v View in Docker Desktop ..." menu
-      env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
-    });
-    livePtys.add(pty);
-    pty.onData(sendLogs);
-    pty.onExit(({ exitCode, signal }) => {
-      livePtys.delete(pty);
-      emitter.emit('exit', exitCode, signal ?? null);
-      emitter.emit('close', exitCode, signal ?? null);
-    });
-  } catch (err) {
-    // Emit asynchronously so callers can attach 'error' listeners first
-    setImmediate(() => emitter.emit('error', err));
+  if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
+    logs.webContents.send('stream-logs', output);
   }
-  return emitter;
-}
-
-function getToken(userTag, secret) {
-  const header = {
-    alg: 'HS512',
-    typ: 'JWT'
-  };
-  const payload = {
-    aud: '',
-    sub: userTag,
-    auth: 'ROLE_ADMIN',
-  };
-  const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
-  const digest = hmac.update(body).digest('base64url');
-  return body + '.' + digest;
-}
-
-function writeEnv() {
-  // DEBUG: Use with profile dev
-  // const key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
-  const key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
-  process.env.JASPER_LOCALE = data.locale ?? '';
-  process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
-  process.env.JASPER_SERVER_DEFAULT_ROLE = data.serverDefaultRole || 'ROLE_ANONYMOUS';
-  process.env.JASPER_PREFETCH = ['ROLE_VIEWER', 'ROLE_ANONYMOUS'].includes(data.serverDefaultRole || 'ROLE_ANONYMOUS') ? 'true' : 'false';
-  process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
-  process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
-  process.env.JASPER_SERVER_PORT = data.serverPort;
-  process.env.JASPER_SERVER_HEAP = data.serverRam ?? '';
-  process.env.JASPER_SERVER_KEY = key;
-  process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
-  process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
-  process.env.JASPER_CLIENT_PORT = data.clientPort;
-  process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
-  process.env.JASPER_CLIENT_TOKEN = getToken('+user', key) ?? '';
-  process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
-  process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
-  process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
-  process.env.JASPER_DATA_DIR = data.dataDir;
-  process.env.JASPER_STORAGE_DIR = data.storageDir;
-  process.env.JASPER_SSH_VERSION = data.sshVersion ?? '';
-  process.env.JASPER_SSH_PULL = data.pullSsh ? 'always' : 'missing';
-  process.env.JASPER_SSH_PORT = data.sshPort;
-  process.env.JASPER_SSH_TOKEN = getToken('+user', key) ?? '';
-  process.env.CLOUDFLARE_TOKEN = data.cfToken;
-  process.env.NGROK_URL = data.ngrokUrl;
-  process.env.NGROK_TOKEN = data.ngrokToken;
-}
+});
 
 function startServer() {
-  writeEnv();
+  writeEnvironment(data);
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
-  return dc('up')
+  return dockerCompose.run('up')
     .once('error', err => {
       dialog.showErrorBox('Docker Compose Missing',
         'This application requires Docker Compose to be installed.\n' +
@@ -237,7 +113,7 @@ function shutdown() {
     { label: 'Shutting down...' },
     { label: 'Force Quit', click: forceQuit },
   ]));
-  dc('down')
+  dockerCompose.run('down')
     .once('close', forceQuit);
   if (win) win.destroy();
   if (logs) logs.destroy();
@@ -273,7 +149,7 @@ function checkUpdates() {
             shell.openExternal('https://github.com/cjmalloy/jasper-app/releases/latest');
           } else {
             autoUpdater.downloadUpdate()
-              .then(() => dc('down').once('close', () => autoUpdater.quitAndInstall()));
+              .then(() => dockerCompose.run('down').once('close', () => autoUpdater.quitAndInstall()));
           }
         }
       },
@@ -444,7 +320,7 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
-  logs.on('closed', () => resizePtys(winPtySize));
+  logs.on('closed', () => dockerCompose.resize(winPtySize));
 }
 
 function createTray() {
@@ -477,7 +353,7 @@ function updateSettings(value) {
     ...data,
     ...value,
   };
-  writeEnv();
+  writeEnvironment(data);
   writeData();
   firstLoad = false;
   if (win && !win.isDestroyed()) {
@@ -485,7 +361,7 @@ function updateSettings(value) {
     win.webContents.clearHistory();
     win.show();
   }
-  dc('down').once('close', () => {
+  dockerCompose.run('down').once('close', () => {
     startServer();
     createMainWindow(true);
     win.show();
@@ -494,7 +370,7 @@ function updateSettings(value) {
 
 function patchSettings(name, value) {
   data[name] = value;
-  writeEnv();
+  writeEnvironment(data);
   writeData();
 }
 
@@ -523,10 +399,10 @@ app.on('ready', () => {
     if (!size?.cols || !size?.rows) return;
     const logsOpen = logs && !logs.isDestroyed();
     if (logsOpen && event.sender === logs.webContents) {
-      resizePtys(size);
+      dockerCompose.resize(size);
     } else {
       winPtySize = size;
-      if (!logsOpen) resizePtys(size);
+      if (!logsOpen) dockerCompose.resize(size);
     }
   });
   tray = createTray();
