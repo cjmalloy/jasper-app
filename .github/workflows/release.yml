@@ -8,29 +8,57 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  create-draft:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') 
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Create Draft Release
+        id: create_release
+        run: |
+          gh release create "${{ github.ref_name }}" --draft --title "${{ github.ref_name }}" --notes "Release binaries for version ${{ github.ref_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-upload:
+    needs: create-draft
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-
+    if: startsWith(github.ref, 'refs/tags/v') 
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-
+        os: [macos-latest, ubuntu-latest]
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v7
 
-      - name: Install Node.js, NPM and Yarn
+      - name: Install Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: 'npm'
 
-      - name: Build/release Electron app
-        uses: samuelmeuli/action-electron-builder@v1.6.0
-        with:
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.github_token }}
+      - name: Build Electron App
+        run: |
+          npm ci
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            # Builds universal Mac binary natively on Apple Silicon
+            npx electron-builder --mac --universal --publish never
+          else
+            # Builds BOTH Linux x64 and Windows x64 directly on the Linux host
+            npx electron-builder --linux --win --x64 --publish never
+          fi
 
-          # If the commit is tagged with a version (e.g. "v1.0.0"),
-          # release the app after building
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      - name: Upload Binary to Existing Draft
+        run: |
+          # Explicitly turn on advanced bash pattern matching (extglob)
+          shopt -s extglob
+          # Uploads your artifacts via the GitHub CLI using your precise pattern
+          gh release upload "${{ github.ref_name }}" dist/*.@(dmg|exe|deb|snap|AppImage|zip) --clobber || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
