@@ -11,8 +11,6 @@ jobs:
   create-draft:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') 
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -43,6 +41,10 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
+
+      - name: Install Windows Build Dependencies (Linux Only)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib
 
       - name: Build Electron App
         run: |
