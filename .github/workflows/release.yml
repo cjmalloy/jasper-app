@@ -33,6 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
+
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v7
@@ -47,18 +48,14 @@ jobs:
         run: |
           npm ci
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            # Builds universal Mac binary natively on Apple Silicon
-            npx electron-builder --mac --universal --publish never
+            npm run ci -- --mac
           else
-            # Builds BOTH Linux x64 and Windows x64 directly on the Linux host
-            npx electron-builder --linux --win --x64 --publish never
+            npm run ci -- --linux --win
           fi
 
       - name: Upload Binary to Existing Draft
         run: |
-          # Explicitly turn on advanced bash pattern matching (extglob)
           shopt -s extglob
-          # Uploads your artifacts via the GitHub CLI using your precise pattern
-          gh release upload "${{ github.ref_name }}" dist/*.@(dmg|exe|deb|snap|AppImage|zip) --clobber || true
+          gh release upload "${{ github.ref_name }}" release/*.@(dmg|AppImage|exe) --clobber || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
