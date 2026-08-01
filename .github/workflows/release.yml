@@ -45,7 +45,7 @@ jobs:
       - name: Build Electron App
         shell: bash
         run: |
-          npm ci
+          npm ci --include=optional
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
             npm run ci -- --mac
           elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
