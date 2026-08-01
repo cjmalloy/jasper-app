@@ -21,7 +21,7 @@ codesign --force --deep --sign - /Applications/Jasper.app
 If Docker is not running the app will not start.
 
 ## Developing
-This project uses npm and typescript. Run `npm install` to install dependencies.
+This project uses npm and typescript. Run `npm install --include=optional` to install dependencies.
 
 ### Development application
 
