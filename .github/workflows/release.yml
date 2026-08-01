@@ -24,13 +24,25 @@ jobs:
 
   build-and-upload:
     needs: create-draft
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - runner: macos-26-intel
+            platform: mac
+            arch: x64
+          - runner: macos-26
+            platform: mac
+            arch: arm64
+          - runner: ubuntu-latest
+            platform: linux
+            arch: x64
+          - runner: windows-latest
+            platform: win
+            arch: x64
 
     steps:
       - name: Check out Git repository
@@ -46,13 +58,7 @@ jobs:
         shell: bash
         run: |
           npm ci
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            npm run ci -- --mac
-          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            npm run ci -- --linux
-          else
-            npm run ci -- --win --x64
-          fi
+          npm run ci -- --${{ matrix.platform }} --${{ matrix.arch }}
 
       - name: Upload Binary to Existing Draft
         shell: bash

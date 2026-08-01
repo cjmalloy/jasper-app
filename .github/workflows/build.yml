@@ -7,11 +7,24 @@ permissions:
 
 jobs:
   release:
-    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
 
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - runner: macos-26-intel
+            platform: mac
+            arch: x64
+          - runner: macos-26
+            platform: mac
+            arch: arm64
+          - runner: ubuntu-latest
+            platform: linux
+            arch: x64
+          - runner: windows-latest
+            platform: win
+            arch: x64
 
     steps:
       - name: Check out Git repository
@@ -23,4 +36,4 @@ jobs:
           cache: 'npm'
       - run: npm ci
 
-      - run: npm run ci
+      - run: npm run ci -- --${{ matrix.platform }} --${{ matrix.arch }}
