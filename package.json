@@ -44,13 +44,7 @@
         "NSCameraUsageDescription": "Camera Required for uploading photos and Video Calls"
       },
       "entitlements": "build/entitlements.mac.plist",
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "x64",
-          "arm64"
-        ]
-      }
+      "target": "dmg"
     },
     "linux": {
       "category": "Office",
