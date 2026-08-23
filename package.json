@@ -1,7 +1,7 @@
 {
   "name": "jasper-app",
   "productName": "Jasper",
-  "version": "1.1.13",
+  "version": "1.1.21",
   "description": "Desktop app for Jasper KM",
   "repository": "cjmalloy/jasper-app",
   "author": {
@@ -44,13 +44,7 @@
         "NSCameraUsageDescription": "Camera Required for uploading photos and Video Calls"
       },
       "entitlements": "build/entitlements.mac.plist",
-      "x64ArchFiles": "**/node_modules/@lydell/node-pty-darwin-*/**",
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "universal"
-        ]
-      }
+      "target": "dmg"
     },
     "linux": {
       "category": "Office",
@@ -61,18 +55,18 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^43.1.0",
+    "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-debug": "^4.1.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~6.0.3",
-    "wait-on": "^9.0.10"
+    "wait-on": "^9.1.0"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "axios": "^1.18.1",
+    "axios": "^1.19.0",
     "electron-context-menu": "^4.1.2",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
