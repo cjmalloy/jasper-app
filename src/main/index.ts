@@ -566,10 +566,12 @@ function createWindow(
   }
   handle.webview.on("dom-ready", () => handle.show());
   handle.on("resize", () => {
+    config.maximized = handle.isMaximized();
     if (config.maximized) return;
     config.bounds = handle.getFrame();
   });
   handle.on("move", () => {
+    config.maximized = handle.isMaximized();
     if (config.maximized) return;
     config.bounds = handle.getFrame();
   });
@@ -835,8 +837,6 @@ function updateSettings(value: SettingsData) {
   if (isWindowOpen(win)) {
     win.webview.loadURL("views://loading/index.html");
     win.show();
-  } else {
-    void createMainWindow(true);
   }
   dc("down")
     .once("close", () => {

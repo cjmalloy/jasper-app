@@ -58,4 +58,7 @@ export default {
     baseUrl:
       "https://github.com/cjmalloy/jasper-app/releases/latest/download",
   },
+  scripts: {
+    postWrap: "scripts/post-wrap.ts",
+  },
 } satisfies ElectrobunConfig;
