@@ -5,7 +5,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper Logs</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="views://assets/xterm.css">
   <style>
     html, body {
       margin: 0;
@@ -27,7 +27,7 @@
     // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
-    window.electronAPI.streamLogs((event, data) => {
+    window.jasperAPI.streamLogs((event, data) => {
       if (term) {
         term.write(data);
       } else {
@@ -35,8 +35,8 @@
       }
     });
   </script>
-  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
-  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="views://assets/xterm.js"></script>
+  <script src="views://assets/addon-fit.js"></script>
 </head>
 <body>
 <div id="terminal"></div>
@@ -65,7 +65,7 @@
   const terminal = document.getElementById('terminal');
   t.open(terminal);
   fitAddon.fit();
-  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  const sendSize = () => window.jasperAPI.resizePty({ cols: t.cols, rows: t.rows });
   sendSize();
   let resizeFrame = null;
   const resizeObserver = new ResizeObserver(() => {
@@ -79,7 +79,7 @@
   resizeObserver.observe(terminal);
   term = t;
   while (pending.length) term.write(pending.shift());
-  window.electronAPI.fetchLogs();
+  window.jasperAPI.fetchLogs();
 </script>
 </body>
 </html>

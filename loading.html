@@ -5,12 +5,12 @@
   <meta name="referrer" content="no-referrer">
   <title>Jasper</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="views://assets/xterm.css">
   <style>
     body {
       /* Prevent bright flash while loading */
       background-color: black;
-      background-image: url("jasper-dark.png");
+      background-image: url("views://assets/jasper-dark.png");
       background-blend-mode: soft-light;
       background-position: center center;
       background-repeat: no-repeat;
@@ -53,7 +53,7 @@
     // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
-    window.electronAPI.streamLogs((event, data) => {
+    window.jasperAPI.streamLogs((event, data) => {
       if (term) {
         term.write(data, () => term.scrollToBottom());
       } else {
@@ -61,8 +61,8 @@
       }
     });
   </script>
-  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
-  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="views://assets/xterm.js"></script>
+  <script src="views://assets/addon-fit.js"></script>
 </head>
 <body>
 <div id="log-container"></div>
@@ -82,7 +82,7 @@
   t.loadAddon(fitAddon);
   t.open(document.getElementById('log-container'));
   fitAddon.fit();
-  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  const sendSize = () => window.jasperAPI.resizePty({ cols: t.cols, rows: t.rows });
   sendSize();
   window.addEventListener('resize', () => {
     fitAddon.fit();
@@ -93,7 +93,7 @@
   if (t.rows > 1) t.write('\n'.repeat(t.rows - 1));
   while (pending.length) term.write(pending.shift());
   term.scrollToBottom();
-  window.electronAPI.fetchLogs();
+  window.jasperAPI.fetchLogs();
 </script>
 </body>
 </html>
