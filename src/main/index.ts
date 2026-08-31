@@ -558,6 +558,7 @@ function createWindow(
     url,
     preload: bridgePreload,
     rpc,
+    navigationRules: JSON.stringify(["^*", "views://*", getEntry(), `${getEntry()}/*`]),
     spellCheck: true,
     hidden: true,
   });
