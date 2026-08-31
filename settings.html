@@ -166,7 +166,7 @@
     }
 
     function patch(f) {
-      window.jasperAPI.patchSettings({name: f, value: $('#' + f).checked});
+      window.jasperAPI.patchSettings({name: f, value: $('#' + f).prop('checked')});
     }
 
     function openDir(dir) {
