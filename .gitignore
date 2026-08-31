@@ -2,12 +2,11 @@
 
 # Compiled output
 /dist
+/.hutch
 /tmp
 /out-tsc
 /bazel-out
 /release
-app.js
-app.js.map
 
 # Node
 /node_modules

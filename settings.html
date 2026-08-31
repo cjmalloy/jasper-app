@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Jasper Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="node_modules/jquery/dist/jquery.min.js"></script>
+  <script src="views://assets/jquery.js"></script>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -120,7 +120,7 @@
       'showLogsOnStart',
     ];
 
-    window.electronAPI.handleSettings((event, settings) => {
+    window.jasperAPI.handleSettings((event, settings) => {
       if (settings.serverProfiles) {
         const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
         for (const p of profiles) {
@@ -135,11 +135,11 @@
       }
     });
 
-    window.electronAPI.notifyFinished((event, command) => {
+    window.jasperAPI.notifyFinished((event, command) => {
       finished(command);
     });
 
-    window.electronAPI.updateImageTags((event, imageTags) => {
+    window.jasperAPI.updateImageTags((event, imageTags) => {
       for (const [key, value] of Object.entries(imageTags)) {
         if (!value || !value.length) continue;
         const $select = $(`#${key}`);
@@ -161,20 +161,20 @@
       for (const f of flags) {
         settings[f] = $('#' + f).prop('checked');
       }
-      window.electronAPI.saveSettings(settings);
+      window.jasperAPI.saveSettings(settings);
       window.close();
     }
 
     function patch(f) {
-      window.electronAPI.patchSettings({name: f, value: $('#' + f).checked});
+      window.jasperAPI.patchSettings({name: f, value: $('#' + f).prop('checked')});
     }
 
     function openDir(dir) {
-      window.electronAPI.openDir(dir);
+      window.jasperAPI.openDir(dir);
     }
 
     function sendCommand(id, ...args) {
-      window.electronAPI.command(id, args);
+      window.jasperAPI.command(id, args);
       $(`#${id}-button`).css('display', 'none');
       $(`#${id}-loading`).css('display', 'block');
     }
@@ -192,7 +192,7 @@
       $('#serverProfiles').val(activeProfiles.join(','));
     }
     window.onload = () => {
-      window.electronAPI.fetchSettings();
+      window.jasperAPI.fetchSettings();
       $('input')
         .focus(e => $(e.currentTarget).css('z-index', 1))
         .blur(e => $(e.currentTarget).css('z-index', ''));
