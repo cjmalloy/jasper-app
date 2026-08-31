@@ -41,6 +41,8 @@ fs.mkdirSync(settingsDir, { recursive: true });
 function readSettings(): SettingsData | null {
   const candidates = [
     settingsPath,
+    path.join(Utils.paths.config, "Jasper", "settings.json"),
+    path.join(Utils.paths.config, "jasper-app", "settings.json"),
     path.join(Utils.paths.appData, "Jasper", "settings.json"),
     path.join(Utils.paths.appData, "jasper-app", "settings.json"),
   ];
