@@ -614,10 +614,12 @@ async function ensureDockerDesktop() {
   }
 
   sendDockerSetupProgress({status: 'Starting Docker Engine...'});
-  await runCommand('open -a Docker');
+  try {
+    await runCommand('open -a Docker');
+  } catch {
+    await runCommand('open "/Applications/Docker.app"');
+  }
   await waitForDockerDaemon();
-  if (dockerSplash && !dockerSplash.isDestroyed()) dockerSplash.destroy();
-  dockerSplash = null;
 }
 
 async function waitFor200(url: string, firstDelay = 100): Promise<null> {
@@ -707,8 +709,10 @@ app.on('ready', async () => {
   mainWindowAllowed = true;
   tray = createTray();
   startServer();
-  createMainWindow(true)
-    .then(() => checkUpdates());
+  const mainWindowPromise = createMainWindow(true);
+  if (dockerSplash && !dockerSplash.isDestroyed()) dockerSplash.destroy();
+  dockerSplash = null;
+  mainWindowPromise.then(() => checkUpdates());
   if (process.platform === 'darwin') {
     systemPreferences.askForMediaAccess('camera');
     systemPreferences.askForMediaAccess('microphone');
