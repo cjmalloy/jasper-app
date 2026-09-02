@@ -31,6 +31,8 @@
     },
     "files": [
       "**/*",
+      "docker-loading.html",
+      "preload.js",
       "!**/*.ts",
       "!*.map",
       "!package.json",
