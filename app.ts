@@ -553,7 +553,7 @@ async function downloadDockerDesktop(destination: string) {
 async function installDockerDesktop(cacheDirectory: string, dmgPath: string) {
   let mounted = false;
   try {
-    await runCommand('hdiutil attach "./Docker.dmg" -nobrowse -quiet', cacheDirectory);
+    await runCommand(`hdiutil attach "./${path.basename(dmgPath)}" -nobrowse -quiet`, cacheDirectory);
     mounted = true;
     await runCommand('codesign --verify --deep --strict /Volumes/Docker/Docker.app');
     await runCommand('spctl --assess --type execute /Volumes/Docker/Docker.app');
