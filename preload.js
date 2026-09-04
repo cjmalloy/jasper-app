@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateImageTags: (callback) => ipcRenderer.on('image-tags', callback),
     streamLogs: (callback) => ipcRenderer.on('stream-logs', callback),
     notifyFinished: (callback) => ipcRenderer.on('finished', callback),
+    onDockerSetupProgress: (callback) => ipcRenderer.on('docker-setup-progress', callback),
 
   fetchLogs: () => ipcRenderer.send('fetch-logs'),
   resizePty: (size) => ipcRenderer.send('resize-pty', size),

@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders } from 'axios';
+import { exec } from 'child_process';
 import * as crypto from 'crypto';
 import {
   app,
@@ -20,6 +21,7 @@ import * as fs from 'fs';
 import { EventEmitter } from 'events';
 import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
+import { pipeline } from 'stream/promises';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +29,9 @@ const __dirname = dirname(__filename);
 
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
+}
+if (process.platform === 'darwin') {
+  process.env.PATH = process.env.PATH + ':/Applications/Docker.app/Contents/Resources/bin';
 }
 
 contextMenu({
@@ -36,6 +41,9 @@ contextMenu({
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const dockerAppPath = '/Applications/Docker.app';
+const dockerDownloadUrl = 'https://desktop.docker.com/mac/main/arm64/Docker.dmg';
+const dockerDmgName = 'Docker.dmg';
 type ImageTags = {
   server: string[];
   client: string[];
@@ -467,6 +475,153 @@ function wait(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+type DockerSetupProgress = {
+  status: string;
+  percentage?: number;
+};
+
+function runCommand(command: string, cwd?: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    exec(command, {cwd}, error => error ? reject(error) : resolve());
+  });
+}
+
+function sendDockerSetupProgress(progress: DockerSetupProgress) {
+  if (dockerSplash && !dockerSplash.isDestroyed()) {
+    dockerSplash.webContents.send('docker-setup-progress', progress);
+  }
+}
+
+async function createDockerSplash(progress: DockerSetupProgress) {
+  dockerSplash = new BrowserWindow({
+    width: 440,
+    height: 180,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#171717',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+  dockerSplash.once('ready-to-show', () => {
+    if (dockerSplash && !dockerSplash.isDestroyed()) dockerSplash.show();
+  });
+  await dockerSplash.loadFile(path.join(__dirname, 'docker-loading.html'));
+  sendDockerSetupProgress(progress);
+}
+
+async function downloadDockerDesktop(destination: string) {
+  const response = await axios.get(dockerDownloadUrl, {
+    responseType: 'stream',
+    maxRedirects: 5,
+    timeout: 30000,
+  });
+  const contentType = String(response.headers['content-type'] ?? '');
+  const totalBytes = Number(response.headers['content-length']);
+  if (contentType.includes('text/html') || !Number.isFinite(totalBytes) || totalBytes <= 0) {
+    response.data.destroy();
+    throw new Error('Docker returned an invalid download response.');
+  }
+
+  let downloadedBytes = 0;
+  let lastPercentage = -1;
+  response.data.on('data', (chunk: Buffer) => {
+    downloadedBytes += chunk.length;
+    const percentage = Math.min(100, Math.floor(downloadedBytes * 100 / totalBytes));
+    if (percentage !== lastPercentage) {
+      lastPercentage = percentage;
+      sendDockerSetupProgress({
+        status: 'Downloading Docker dependency... Please wait',
+        percentage,
+      });
+    }
+  });
+
+  await pipeline(response.data, fs.createWriteStream(destination, {mode: 0o600}));
+  sendDockerSetupProgress({
+    status: 'Downloading Docker dependency... Please wait',
+    percentage: 100,
+  });
+}
+
+async function installDockerDesktop(cacheDirectory: string, dmgPath: string) {
+  let mounted = false;
+  try {
+    await runCommand(`hdiutil attach "./${path.basename(dmgPath)}" -nobrowse -quiet`, cacheDirectory);
+    mounted = true;
+    await runCommand('codesign --verify --deep --strict /Volumes/Docker/Docker.app');
+    await runCommand('spctl --assess --type execute /Volumes/Docker/Docker.app');
+    await runCommand(
+      `test "$(codesign -dv --verbose=4 /Volumes/Docker/Docker.app 2>&1 | sed -n 's/^TeamIdentifier=//p')" = 9BNSXJN65R`
+    );
+    await runCommand(
+      `/usr/bin/osascript -e 'do shell script "sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license --quiet" with administrator privileges'`
+    );
+    await runCommand('hdiutil detach /Volumes/Docker -quiet');
+    mounted = false;
+  } finally {
+    if (mounted) {
+      await runCommand('hdiutil detach /Volumes/Docker -quiet').catch(error => {
+        console.log('Failed to detach the Docker installer: ' + error);
+      });
+    }
+    await fs.promises.rm(dmgPath, {force: true});
+  }
+}
+
+async function waitForDockerDaemon() {
+  while (true) {
+    try {
+      await runCommand('docker stats --no-stream');
+      return;
+    } catch {
+      await wait(2000);
+    }
+  }
+}
+
+async function ensureDockerDesktop() {
+  if (process.platform !== 'darwin' || process.arch !== 'arm64') return;
+
+  const installed = fs.existsSync(dockerAppPath);
+  await createDockerSplash({
+    status: installed
+      ? 'Starting Docker Engine...'
+      : 'Downloading Docker dependency... Please wait',
+    ...(installed ? {} : {percentage: 0}),
+  });
+
+  if (!installed) {
+    const cacheDirectory = path.join(app.getPath('userData'), 'docker-cache');
+    const dmgPath = path.join(cacheDirectory, dockerDmgName);
+    await fs.promises.mkdir(cacheDirectory, {recursive: true});
+    try {
+      await downloadDockerDesktop(dmgPath);
+      sendDockerSetupProgress({
+        status: 'Installing Docker... Enter your Mac password if prompted to allow system configurations.',
+      });
+      await installDockerDesktop(cacheDirectory, dmgPath);
+    } catch (error) {
+      await fs.promises.rm(dmgPath, {force: true});
+      throw error;
+    }
+  }
+
+  sendDockerSetupProgress({status: 'Starting Docker Engine...'});
+  try {
+    await runCommand('open -a Docker');
+  } catch {
+    await runCommand('open "/Applications/Docker.app"');
+  }
+  await waitForDockerDaemon();
+}
+
 async function waitFor200(url: string, firstDelay = 100): Promise<null> {
   return axios.get(url)
     .catch(() => ({status: 0}))
@@ -510,8 +665,10 @@ let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
 let settings: BrowserWindow;
+let dockerSplash: BrowserWindow | null;
+let mainWindowAllowed = false;
 
-app.on('ready', () => {
+app.on('ready', async () => {
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
@@ -536,10 +693,26 @@ app.on('ready', () => {
       if (!logsOpen) resizePtys(size);
     }
   });
+  try {
+    await ensureDockerDesktop();
+  } catch (error) {
+    if (dockerSplash && !dockerSplash.isDestroyed()) dockerSplash.destroy();
+    dockerSplash = null;
+    dialog.showErrorBox(
+      'Docker Desktop Setup Failed',
+      'Docker Desktop could not be installed or started.\n\n' + error
+    );
+    forceQuit();
+    return;
+  }
+
+  mainWindowAllowed = true;
   tray = createTray();
   startServer();
-  createMainWindow(true)
-    .then(() => checkUpdates());
+  const mainWindowPromise = createMainWindow(true);
+  if (dockerSplash && !dockerSplash.isDestroyed()) dockerSplash.destroy();
+  dockerSplash = null;
+  mainWindowPromise.then(() => checkUpdates());
   if (process.platform === 'darwin') {
     systemPreferences.askForMediaAccess('camera');
     systemPreferences.askForMediaAccess('microphone');
@@ -547,10 +720,14 @@ app.on('ready', () => {
 });
 
 app.on('activate', () => {
-  createMainWindow();
+  if (mainWindowAllowed) createMainWindow();
 });
 
 app.on('before-quit', event => {
+  if (!mainWindowAllowed) {
+    forceQuitting = true;
+    return;
+  }
   if (!forceQuitting) {
     event.preventDefault();
     shutdown();

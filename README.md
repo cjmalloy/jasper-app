@@ -8,7 +8,8 @@ Desktop app for [Jasper Knowledge Management](https://github.com/cjmalloy/jasper
 [![All versions](https://img.shields.io/badge/-All_Versions-lightgrey.svg?style=for-the-badge)](https://github.com/cjmalloy/jasper-app/releases)
 
 ## Prerequisites
-Docker Compose is required. Install from https://www.docker.com/products/docker-desktop/  
+Docker Compose is required. On Apple Silicon Macs, Jasper downloads, installs, and starts Docker Desktop when needed.
+On other platforms, install it from https://www.docker.com/products/docker-desktop/
 
 ### macOs 15+
 To allow on macOs 15+ you must remove the quarantine flag and re-sign:
