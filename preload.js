@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.send('settings-value', settings),
   patchSettings: (patch) => ipcRenderer.send('settings-patch', patch),
   openDir: (dir) => ipcRenderer.send('open-dir', dir),
+  saveAs: (buffer, defaultFilename) => ipcRenderer.invoke('save-as', buffer, defaultFilename),
   command: (id, args) => ipcRenderer.send('command', id, args),
 });
