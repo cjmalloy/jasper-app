@@ -7,6 +7,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  Notification,
   screen,
   shell,
   systemPreferences,
@@ -517,6 +518,41 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
+  ipcMain.handle('save-file', async (event, buffer: ArrayBuffer, defaultFilename: string) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents ||
+        event.senderFrame !== win.webContents.mainFrame ||
+        new URL(event.senderFrame.url).origin !== new URL(getEntry()).origin) {
+      throw new Error('File saving is only available from the Jasper window.');
+    }
+    if (!(buffer instanceof ArrayBuffer) || typeof defaultFilename !== 'string' ||
+        !defaultFilename.trim() || defaultFilename.includes('\0')) {
+      throw new Error('Expected an ArrayBuffer and a non-empty default filename.');
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: path.basename(defaultFilename),
+    });
+    if (canceled || !filePath) return null;
+
+    await fs.promises.writeFile(filePath, Buffer.from(buffer));
+    try {
+      const notification = new Notification({
+        title: 'File saved',
+        body: `${path.basename(filePath)} — Click to open`,
+      });
+      notification.on('click', () => {
+        shell.openPath(filePath)
+          .then(error => {
+            if (error) dialog.showErrorBox('Unable to open file', error);
+          })
+          .catch(error => dialog.showErrorBox('Unable to open file', String(error)));
+      });
+      notification.on('failed', (_event, error) => log.warn('Save notification failed:', error));
+      notification.show();
+    } catch (error) {
+      log.warn('Save notification failed:', error);
+    }
+    return filePath;
+  });
   ipcMain.on('fetch-logs', event => {
     const wc = event.sender;
     if (!logSubscribers.has(wc)) {
