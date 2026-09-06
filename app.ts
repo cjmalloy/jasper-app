@@ -518,7 +518,7 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
-  ipcMain.handle('save-file', async (event, buffer: ArrayBuffer, defaultFilename: string) => {
+  ipcMain.handle('save-as', async (event, buffer: ArrayBuffer, defaultFilename: string) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents ||
         event.senderFrame !== win.webContents.mainFrame ||
         new URL(event.senderFrame.url).origin !== new URL(getEntry()).origin) {
