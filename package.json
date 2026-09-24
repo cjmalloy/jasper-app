@@ -57,7 +57,7 @@
   "devDependencies": {
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
-    "electron-debug": "^4.1.0",
+    "electron-debug": "^5.0.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~7.0.2",
     "wait-on": "^9.1.0"
