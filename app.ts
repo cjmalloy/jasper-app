@@ -47,7 +47,7 @@ const serverKey = crypto.generateKeySync('hmac', {length: 1024}).export().toStri
 // Identity only (+user) for jasper-ssh, never carries roles
 const sshToken = getToken('+user', serverKey);
 // Admin token for the Jasper window. Only kept in memory here, and only sent by the auth hook.
-const windowTokenLifetime = 24 * 60 * 60;
+const windowTokenLifetimeSeconds = 24 * 60 * 60;
 let windowToken = { token: '', exp: 0 };
 // Loaded from safeStorage once the app is ready
 let dbPassword = '';
@@ -215,8 +215,8 @@ function getToken(userTag: string, secret: string) {
  */
 function getWindowToken() {
   const now = Math.floor(Date.now() / 1000);
-  if (windowToken.exp - now < windowTokenLifetime / 2) {
-    const exp = now + windowTokenLifetime;
+  if (windowToken.exp - now < windowTokenLifetimeSeconds / 2) {
+    const exp = now + windowTokenLifetimeSeconds;
     windowToken = {
       exp,
       token: signToken({
