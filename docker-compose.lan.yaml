@@ -1,0 +1,6 @@
+# Publishes the anonymous proxy on the LAN. Off by default: the app only adds this file
+# (along with --profile lan) when a LAN port is set in the advanced settings.
+services:
+  proxy:
+    ports:
+      - "${JASPER_PROXY_PORT:?}:80"

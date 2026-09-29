@@ -15,7 +15,8 @@
     "tsc": "tsc -p tsconfig.json",
     "start": "npm run tsc && electron app.js",
     "build": "npm run tsc && electron-builder build",
-    "ci": "npm run tsc && electron-builder build --publish never"
+    "ci": "npm run tsc && electron-builder build --publish never",
+    "test": "node --test auth-hook.test.ts"
   },
   "build": {
     "asar": false,
