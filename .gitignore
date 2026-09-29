@@ -8,8 +8,6 @@
 /release
 app.js
 app.js.map
-auth-hook.js
-auth-hook.js.map
 
 # Node
 /node_modules

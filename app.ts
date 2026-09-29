@@ -25,7 +25,6 @@ import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { authHeaders, register, WHOAMI_PATH } from './auth-hook.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -239,6 +238,48 @@ function signToken(payload: object, secret: string) {
   const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
   const digest = hmac.update(body).digest('base64url');
   return body + '.' + digest;
+}
+
+/** Same endpoint jasper-ui uses to load the current user's roles */
+const WHOAMI_PATH = '/api/v1/user/whoami';
+/** Headers the page may never set on requests to the client */
+const STRIPPED_HEADERS = ['authorization', 'user-role', 'x-jasper-key'];
+
+/** Drop auth headers set by the page, and add the window token if given. */
+function authHeaders(headers: Record<string, string>, token?: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const name of Object.keys(headers)) {
+    if (STRIPPED_HEADERS.includes(name.toLowerCase())) continue;
+    result[name] = headers[name];
+  }
+  if (token) result['Authorization'] = 'Bearer ' + token;
+  return result;
+}
+
+/**
+ * The window authenticates with a JWT signed with the per-launch HMAC key that only the server and
+ * the Electron main process know. This hook is the only thing that adds it, so only the Electron
+ * window is admin. Requests started by anything other than the Jasper UI or the browser itself
+ * (no initiator, ex. window navigation), like an embedded third party iframe, are anonymous.
+ * Registering again replaces the previous hook, so call again when the port changes.
+ */
+function registerAuthHook(port: string | number) {
+  const origins = [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
+  const urls = [
+    `http://localhost:${port}/*`,
+    `http://127.0.0.1:${port}/*`,
+    `ws://localhost:${port}/*`,
+    `ws://127.0.0.1:${port}/*`,
+  ];
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
+    let token: string | undefined;
+    try {
+      if (details.initiatorOrigin === undefined || origins.includes(details.initiatorOrigin)) token = getWindowToken();
+    } catch {
+      // Fail closed: send the request anonymously
+    }
+    callback({ requestHeaders: authHeaders(details.requestHeaders, token) });
+  });
 }
 
 /**
@@ -480,7 +521,7 @@ function createMainWindow(showLoading = false) {
   return waitFor200(getClientUrl('/'), showLoading ? 5000 : 100)
     .then(() => {
       // Registering again replaces the previous hook, in case the port changed
-      register(session.defaultSession.webRequest, data.clientPort, getWindowToken);
+      registerAuthHook(data.clientPort);
       return waitForServer();
     })
     .then(() => {
