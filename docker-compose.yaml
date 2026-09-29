@@ -95,10 +95,9 @@ services:
     depends_on:
       - proxy
   proxy:
-    # Anonymous access for the Cloudflare tunnel and the LAN (docker-compose.lan.yaml)
+    # Anonymous access for the Cloudflare tunnel
     profiles:
       - cf
-      - lan
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
     pull_policy: "${JASPER_CLIENT_PULL:-missing}"
     restart: unless-stopped

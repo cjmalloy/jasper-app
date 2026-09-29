@@ -38,7 +38,6 @@ contextMenu({
 });
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
-const lanConfig = path.join(__dirname, 'docker-compose.lan.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
 // New secret on every launch, only shared with the server
@@ -79,7 +78,6 @@ try {
     sshVersion: 'v1.1',
     pullSsh: true,
     sshPort: '8022',
-    proxyPort: '',
     cfToken: '',
     ngrokUrl: '',
     ngrokToken: '',
@@ -89,6 +87,7 @@ try {
 // The server is no longer published, and the default role is always anonymous
 delete data.serverPort;
 delete data.serverDefaultRole;
+delete data.proxyPort;
 
 const contextMenuTemplate = [
   {label: 'Show Window', click: () => createMainWindow(false)},
@@ -192,12 +191,11 @@ function dc(command: string) {
 function composeProfiles(command: string) {
   if (command === 'down') {
     // Stop everything, including tunnels that were disabled since they started
-    return ['--profile', 'cf', '--profile', 'lan', '--profile', 'ngrok'];
+    return ['--profile', 'cf', '--profile', 'ngrok'];
   }
   return [
     ...data.cfToken ? ['--profile', 'cf'] : [],
     ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-    ...data.proxyPort ? ['-f', lanConfig, '--profile', 'lan'] : [],
   ];
 }
 
@@ -308,7 +306,6 @@ function writeEnv(): { [key: string]: string } {
     JASPER_CLIENT_PULL: data.pullClient ? 'always' : 'missing',
     JASPER_CLIENT_PORT: data.clientPort ?? '',
     JASPER_CLIENT_TITLE: data.clientTitle ?? '',
-    JASPER_PROXY_PORT: data.proxyPort ?? '',
     JASPER_DATABASE_VERSION: databaseVersion,
     JASPER_DATABASE_PULL: data.pullDatabase ? 'always' : 'missing',
     JASPER_DATABASE_PASSWORD: dbPassword,

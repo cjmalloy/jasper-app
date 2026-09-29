@@ -100,7 +100,6 @@
       'clientPort',
       'sshVersion',
       'sshPort',
-      'proxyPort',
       'cfToken',
       'ngrokUrl',
       'ngrokToken',
@@ -138,7 +137,7 @@
       for (const f of flags) {
         $('#' + f).prop('checked', settings[f] ?? false);
       }
-      $('#advanced').prop('open', !!(settings.proxyPort || settings.cfToken || settings.ngrokUrl || settings.ngrokToken));
+      $('#advanced').prop('open', !!(settings.cfToken || settings.ngrokUrl || settings.ngrokToken));
     });
 
     window.electronAPI.notifyFinished((event, command) => {
@@ -312,11 +311,8 @@
 
   <details id="advanced">
     <summary>Advanced</summary>
-    <p>The LAN port and Cloudflare tunnel only allow anonymous access. Ngrok forwards SSH, where users get their own identity.</p>
+    <p>The Cloudflare tunnel only allows anonymous access. Ngrok forwards SSH, where users get their own identity.</p>
     <div class="label-column">
-      <label for="proxyPort">LAN Port</label>
-      <input id="proxyPort" type="text" placeholder="Off">
-
       <label for="cfToken">Cloudflare Token</label>
       <input id="cfToken" type="text" placeholder="Off">
 

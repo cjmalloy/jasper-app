@@ -28,8 +28,7 @@ The OS user account is the security boundary:
   added to requests at the network layer; anything the page sets for `Authorization` or `User-Role` is dropped.
 * The `client` UI is published on `127.0.0.1` only. Anything else that reaches it, like a browser tab, has no token and
   is anonymous. The server ignores `User-Role` headers, and the default role is always `ROLE_ANONYMOUS`.
-* The LAN port (Settings → Advanced, off by default) and Cloudflare go through the `proxy` container, and only get
-  anonymous access.
+* Cloudflare goes through the `proxy` container, and only gets anonymous access.
 * ngrok only forwards to the `ssh` container. SSH users get their own identity (`User-Tag`) from jasper-ssh.
 * `web` and `db` publish no ports. `db` is on an internal network that only `web` can reach, and the tunnels can't
   reach `web` directly.
