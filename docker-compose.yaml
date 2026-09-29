@@ -13,7 +13,7 @@ services:
       SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,jwt,storage}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
-      SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:?}"
+      SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       JASPER_DEFAULT_ROLE: ROLE_ANONYMOUS
       JASPER_ALLOW_USER_TAG_HEADER: true
       JASPER_OVERRIDE_SECURITY_MODE: "jwt"
@@ -36,15 +36,13 @@ services:
       - data
     environment:
       POSTGRES_USER: jasper
-      POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:?}"
+      POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       POSTGRES_DB: jasper
       PGDATA: "/var/lib/postgresql/${JASPER_DATABASE_VERSION:-17}/docker"
     volumes:
       - "${JASPER_DATA_DIR:?Must Set Data Dir}:/var/lib/postgresql"
     tmpfs:
-      # Postgres 17 and older declare VOLUME /var/lib/postgresql/data, which is no longer PGDATA.
-      # Cover it with an empty tmpfs so every start doesn't create a new anonymous volume.
-      # Must not be mounted for Postgres 18+, the app sets this to /tmp for those versions.
+      # Postgres 17 and older declare VOLUME /var/lib/postgresql/data, cover it so no anonymous volume is created
       - "${JASPER_DATABASE_TMPFS:-/var/lib/postgresql/data}"
   client:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
@@ -76,7 +74,6 @@ services:
       - "127.0.0.1:${JASPER_SSH_PORT:-8022}:22"
     environment:
       UPSTREAM: "http://web:80"
-      TOKEN: "${JASPER_SSH_TOKEN}"
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/secrets:/secrets"
@@ -85,7 +82,8 @@ services:
   cf:
     profiles:
       - cf
-    image: cloudflare/cloudflared:2026.9.3
+    image: cloudflare/cloudflared
+    pull_policy: always
     restart: unless-stopped
     networks:
       - edge
@@ -95,7 +93,6 @@ services:
     depends_on:
       - proxy
   proxy:
-    # Anonymous access for the Cloudflare tunnel
     profiles:
       - cf
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
@@ -115,7 +112,8 @@ services:
   ngrok:
     profiles:
       - ngrok
-    image: ngrok/ngrok:3.39.11-debian
+    image: ngrok/ngrok
+    pull_policy: always
     restart: unless-stopped
     networks:
       - edge

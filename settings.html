@@ -41,12 +41,6 @@
       vertical-align: top;
       font-size: 18px;
     }
-    #advanced {
-      grid-column: 1 / -1;
-    }
-    #advanced summary {
-      cursor: pointer;
-    }
     .loading {
       display: none;
       pointer-events: none;
@@ -137,7 +131,6 @@
       for (const f of flags) {
         $('#' + f).prop('checked', settings[f] ?? false);
       }
-      $('#advanced').prop('open', !!(settings.cfToken || settings.ngrokUrl || settings.ngrokToken));
     });
 
     window.electronAPI.notifyFinished((event, command) => {
@@ -309,20 +302,14 @@
   <label for="sshPort">SSH Port</label>
   <input id="sshPort" type="text">
 
-  <details id="advanced">
-    <summary>Advanced</summary>
-    <p>The Cloudflare tunnel only allows anonymous access. Ngrok forwards SSH, where users get their own identity.</p>
-    <div class="label-column">
-      <label for="cfToken">Cloudflare Token</label>
-      <input id="cfToken" type="text" placeholder="Off">
+  <label for="cfToken">Cloudflare Token</label>
+  <input id="cfToken" type="text">
 
-      <label for="ngrokUrl">Ngrok URL</label>
-      <input id="ngrokUrl" type="text">
+  <label for="ngrokUrl">Ngrok URL</label>
+  <input id="ngrokUrl" type="text">
 
-      <label for="ngrokToken">Ngrok Token</label>
-      <input id="ngrokToken" type="text" placeholder="Off">
-    </div>
-  </details>
+  <label for="ngrokToken">Ngrok Token</label>
+  <input id="ngrokToken" type="text">
 
   <label for="showLogsOnStart">Show Logs on Startup</label>
   <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>

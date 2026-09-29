@@ -21,25 +21,9 @@ codesign --force --deep --sign - /Applications/Jasper.app
 If Docker is not running the app will not start.
 
 ## Security model
-The OS user account is the security boundary:
-
-* Only the Jasper window is admin. Its requests carry a JWT (`sub: +user`, `auth: ROLE_ADMIN`) signed with an HMAC key
-  that is generated on each launch and only shared with the server. The token stays in the Electron main process and is
-  added to requests at the network layer; anything the page sets for `Authorization` or `User-Role` is dropped.
-* The `client` UI is published on `127.0.0.1` only. Anything else that reaches it, like a browser tab, has no token and
-  is anonymous. The server ignores `User-Role` headers, and the default role is always `ROLE_ANONYMOUS`.
-* Cloudflare goes through the `proxy` container, and only gets anonymous access.
-* ngrok only forwards to the `ssh` container. SSH users get their own identity (`User-Tag`) from jasper-ssh.
-* `web` and `db` publish no ports. `db` is on an internal network that only `web` can reach, and the tunnels can't
-  reach `web` directly.
-* The database password is random on new installs and stored with Electron `safeStorage`. On Linux, set up a keyring
-  (gnome-keyring or kwallet), or the password is only obfuscated. `POSTGRES_PASSWORD` is only applied when the database
-  is created, so changing the password needs an `ALTER ROLE jasper PASSWORD '...'` too.
-
-This relies on the `jasper-ui` proxy stripping `User-Tag` and access headers from untrusted requests (and ideally
-`Authorization`, as defense in depth), and on `jasper-ssh` binding each user's nginx to `127.0.0.1`.
-It does not protect against malware running as your user, members of the `docker` / `docker-users` group, or anything
-on a powered-on device.
+Only the Jasper window is admin. The app adds a JWT signed with a key generated on each launch to the window's
+requests. Everything else, including browser tabs and Cloudflare, is anonymous, and SSH users get their own `User-Tag`.
+`web` and `db` publish no ports, and `client` and `ssh` only listen on `127.0.0.1`.
 
 ## Upgrading to Postgres 17 data path
 With Postgres 17 or earlier, the database now lives in `<data dir>/17/docker` instead of an anonymous Docker volume,
@@ -51,7 +35,6 @@ docker exec <db container> pg_dump -U jasper -d jasper -Fc > jasper.dump
 # After upgrading, with the new version running:
 docker exec -i <db container> pg_restore -U jasper -d jasper --clean --if-exists < jasper.dump
 ```
-Existing installs keep the old `jasper` database password.
 
 ## Developing
 This project uses npm and typescript. Run `npm install` to install dependencies.
