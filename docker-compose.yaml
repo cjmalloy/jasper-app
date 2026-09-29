@@ -14,7 +14,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
-      JASPER_DEFAULT_ROLE: ROLE_ANONYMOUS
+      JASPER_DEFAULT_ROLE: "${JASPER_SERVER_DEFAULT_ROLE:-ROLE_ANONYMOUS}"
       JASPER_ALLOW_USER_TAG_HEADER: true
       JASPER_OVERRIDE_SECURITY_MODE: "jwt"
       JASPER_OVERRIDE_SECURITY_CLIENT_ID: ""
@@ -29,7 +29,7 @@ services:
     depends_on:
       - db
   db:
-    image: "postgres:${JASPER_DATABASE_VERSION:-17}"
+    image: "postgres:${JASPER_DATABASE_VERSION:-18}"
     pull_policy: "${JASPER_DATABASE_PULL:-missing}"
     restart: unless-stopped
     networks:
@@ -38,12 +38,8 @@ services:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
       POSTGRES_DB: jasper
-      PGDATA: "/var/lib/postgresql/${JASPER_DATABASE_VERSION:-17}/docker"
     volumes:
       - "${JASPER_DATA_DIR:?Must Set Data Dir}:/var/lib/postgresql"
-    tmpfs:
-      # Postgres 17 and older declare VOLUME /var/lib/postgresql/data, cover it so no anonymous volume is created
-      - "${JASPER_DATABASE_TMPFS:-/var/lib/postgresql/data}"
   client:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
     pull_policy: "${JASPER_CLIENT_PULL:-missing}"

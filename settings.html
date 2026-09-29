@@ -87,6 +87,7 @@
       'appVersion',
       'serverVersion',
       'serverProfiles',
+      'serverDefaultRole',
       'serverRam',
       'storageDir',
       'clientVersion',
@@ -238,6 +239,18 @@
 
   <span></span>
   <input id="serverProfiles" type="text">
+
+  <label for="serverDefaultRole">Default Role</label>
+  <div class="form-array">
+    <select id="serverDefaultRole">
+      <option value="ROLE_ADMIN">admin</option>
+      <option value="ROLE_MOD">mod</option>
+      <option value="ROLE_EDITOR">editor</option>
+      <option value="ROLE_USER">user</option>
+      <option value="ROLE_VIEWER">viewer</option>
+      <option value="ROLE_ANONYMOUS">anon</option>
+    </select>
+  </div>
 
   <label for="serverRam">Server RAM</label>
   <input id="serverRam" type="text">

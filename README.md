@@ -20,22 +20,6 @@ codesign --force --deep --sign - /Applications/Jasper.app
 ## Troubleshooting
 If Docker is not running the app will not start.
 
-## Security model
-Only the Jasper window is admin. The app adds a JWT signed with a key generated on each launch to the window's
-requests. Everything else, including browser tabs and Cloudflare, is anonymous, and SSH users get their own `User-Tag`.
-`web` and `db` publish no ports, and `client` and `ssh` only listen on `127.0.0.1`.
-
-## Upgrading to Postgres 17 data path
-With Postgres 17 or earlier, the database now lives in `<data dir>/17/docker` instead of an anonymous Docker volume,
-which could be lost when the container was recreated. The new path starts empty, so back up before upgrading and
-restore after:
-```shell
-# Before upgrading, with the old version running:
-docker exec <db container> pg_dump -U jasper -d jasper -Fc > jasper.dump
-# After upgrading, with the new version running:
-docker exec -i <db container> pg_restore -U jasper -d jasper --clean --if-exists < jasper.dump
-```
-
 ## Developing
 This project uses npm and typescript. Run `npm install` to install dependencies.
 

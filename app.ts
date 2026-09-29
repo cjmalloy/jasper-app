@@ -39,6 +39,8 @@ contextMenu({
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 // New secret on every launch, only shared with the server
+// DEBUG: Use with profile dev
+// const serverKey = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
 const serverKey = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
 // Admin token for the Jasper window, only sent by the auth hook
 const windowToken = getToken('+user', serverKey);
@@ -59,6 +61,7 @@ try {
     serverVersion: 'v1.3',
     pullServer: true,
     serverProfiles: 'prod,jwt,storage,scripts,proxy,file-cache',
+    serverDefaultRole: 'ROLE_ANONYMOUS',
     serverRam: '1g',
     clientVersion: 'v1.3',
     pullClient: true,
@@ -164,8 +167,7 @@ function dc(command: string) {
       name: 'xterm-color',
       cols: ptySize.cols,
       rows: ptySize.rows,
-      // Disable the interactive "v View in Docker Desktop ..." menu
-      env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
+      env: getEnv(),
     });
     livePtys.add(pty);
     pty.onData(sendLogs);
@@ -196,34 +198,38 @@ function getToken(userTag: string, secret: string) {
   return body + '.' + digest;
 }
 
-function writeEnv() {
-  process.env.JASPER_LOCALE = data.locale ?? '';
-  process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
-  process.env.JASPER_SERVER_VERSION = data.serverVersion ?? '';
-  process.env.JASPER_SERVER_PULL = data.pullServer ? 'always' : 'missing';
-  process.env.JASPER_SERVER_HEAP = data.serverRam ?? '';
-  process.env.JASPER_SERVER_KEY = serverKey;
-  process.env.JASPER_CLIENT_VERSION = data.clientVersion ?? '';
-  process.env.JASPER_CLIENT_PULL = data.pullClient ? 'always' : 'missing';
-  process.env.JASPER_CLIENT_PORT = data.clientPort;
-  process.env.JASPER_CLIENT_TITLE = data.clientTitle ?? '';
-  process.env.JASPER_DATABASE_VERSION = data.databaseVersion ?? '';
-  process.env.JASPER_DATABASE_PULL = data.pullDatabase ? 'always' : 'missing';
-  // Postgres 18+ must not have anything mounted at /var/lib/postgresql/data
-  process.env.JASPER_DATABASE_TMPFS = parseInt(data.databaseVersion || '17') <= 17 ? '/var/lib/postgresql/data' : '/tmp';
-  process.env.JASPER_DATABASE_PASSWORD = data.dbPassword ?? '';
-  process.env.JASPER_DATA_DIR = data.dataDir;
-  process.env.JASPER_STORAGE_DIR = data.storageDir;
-  process.env.JASPER_SSH_VERSION = data.sshVersion ?? '';
-  process.env.JASPER_SSH_PULL = data.pullSsh ? 'always' : 'missing';
-  process.env.JASPER_SSH_PORT = data.sshPort;
-  process.env.CLOUDFLARE_TOKEN = data.cfToken;
-  process.env.NGROK_URL = data.ngrokUrl;
-  process.env.NGROK_TOKEN = data.ngrokToken;
+function getEnv(): { [key: string]: string } {
+  return {
+    ...process.env as { [key: string]: string },
+    // Disable the interactive "v View in Docker Desktop ..." menu
+    COMPOSE_MENU: 'false',
+    JASPER_LOCALE: data.locale ?? '',
+    JASPER_SERVER_PROFILES: data.serverProfiles ?? '',
+    JASPER_SERVER_DEFAULT_ROLE: data.serverDefaultRole || 'ROLE_ANONYMOUS',
+    JASPER_PREFETCH: ['ROLE_VIEWER', 'ROLE_ANONYMOUS'].includes(data.serverDefaultRole || 'ROLE_ANONYMOUS') ? 'true' : 'false',
+    JASPER_SERVER_VERSION: data.serverVersion ?? '',
+    JASPER_SERVER_PULL: data.pullServer ? 'always' : 'missing',
+    JASPER_SERVER_HEAP: data.serverRam ?? '',
+    JASPER_SERVER_KEY: serverKey,
+    JASPER_CLIENT_VERSION: data.clientVersion ?? '',
+    JASPER_CLIENT_PULL: data.pullClient ? 'always' : 'missing',
+    JASPER_CLIENT_PORT: data.clientPort ?? '',
+    JASPER_CLIENT_TITLE: data.clientTitle ?? '',
+    JASPER_DATABASE_VERSION: data.databaseVersion ?? '',
+    JASPER_DATABASE_PULL: data.pullDatabase ? 'always' : 'missing',
+    JASPER_DATABASE_PASSWORD: data.dbPassword ?? '',
+    JASPER_DATA_DIR: data.dataDir ?? '',
+    JASPER_STORAGE_DIR: data.storageDir ?? '',
+    JASPER_SSH_VERSION: data.sshVersion ?? '',
+    JASPER_SSH_PULL: data.pullSsh ? 'always' : 'missing',
+    JASPER_SSH_PORT: data.sshPort ?? '',
+    CLOUDFLARE_TOKEN: data.cfToken ?? '',
+    NGROK_URL: data.ngrokUrl ?? '',
+    NGROK_TOKEN: data.ngrokToken ?? '',
+  };
 }
 
 function startServer() {
-  writeEnv();
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
@@ -497,7 +503,6 @@ function updateSettings(value: any) {
     ...data,
     ...value,
   };
-  writeEnv();
   writeData();
   firstLoad = false;
   if (win && !win.isDestroyed()) {
@@ -514,7 +519,6 @@ function updateSettings(value: any) {
 
 function patchSettings(name: string, value: any) {
   data[name] = value;
-  writeEnv();
   writeData();
 }
 
