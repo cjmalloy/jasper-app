@@ -23,11 +23,13 @@ If Docker is not running the app will not start.
 ## Security model
 The OS user account is the security boundary:
 
-* Only the Jasper window is admin. The `client` UI is published on `127.0.0.1` only, and every request from the
-  window carries an `X-Jasper-Key` header that is generated on each launch. The window adds `User-Role: ROLE_ADMIN`
-  only while `/api/v1/user/whoami` reports no role. If that check fails, no role header is sent.
-* The LAN port (Settings → Advanced, off by default) and Cloudflare go through the `proxy` container. They get no key,
-  and identity headers are stripped, so they only get anonymous access. The default role is always `ROLE_ANONYMOUS`.
+* Only the Jasper window is admin. Its requests carry a JWT (`sub: +user`, `auth: ROLE_ADMIN`) signed with an HMAC key
+  that is generated on each launch and only shared with the server. The token stays in the Electron main process and is
+  added to requests at the network layer; anything the page sets for `Authorization` or `User-Role` is dropped.
+* The `client` UI is published on `127.0.0.1` only. Anything else that reaches it, like a browser tab, has no token and
+  is anonymous. The server ignores `User-Role` headers, and the default role is always `ROLE_ANONYMOUS`.
+* The LAN port (Settings → Advanced, off by default) and Cloudflare go through the `proxy` container, and only get
+  anonymous access.
 * ngrok only forwards to the `ssh` container. SSH users get their own identity (`User-Tag`) from jasper-ssh.
 * `web` and `db` publish no ports. `db` is on an internal network that only `web` can reach, and the tunnels can't
   reach `web` directly.
@@ -35,8 +37,8 @@ The OS user account is the security boundary:
   (gnome-keyring or kwallet), or the password is only obfuscated. `POSTGRES_PASSWORD` is only applied when the database
   is created, so changing the password needs an `ALTER ROLE jasper PASSWORD '...'` too.
 
-This relies on the `jasper-ui` proxy dropping requests without the key and stripping `User-Role`, `User-Tag` and access
-headers from untrusted requests, and on `jasper-ssh` binding each user's nginx to `127.0.0.1`.
+This relies on the `jasper-ui` proxy stripping `User-Tag` and access headers from untrusted requests (and ideally
+`Authorization`, as defense in depth), and on `jasper-ssh` binding each user's nginx to `127.0.0.1`.
 It does not protect against malware running as your user, members of the `docker` / `docker-users` group, or anything
 on a powered-on device.
 
