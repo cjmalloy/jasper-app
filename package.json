@@ -15,10 +15,12 @@
     "tsc": "tsc -p tsconfig.json",
     "start": "npm run tsc && electron app.js",
     "build": "npm run tsc && electron-builder build",
-    "ci": "npm run tsc && electron-builder build --publish never"
+    "ci": "npm run tsc && electron-builder build --publish never",
+    "fetch-podman": "node scripts/fetch-podman.mjs"
   },
   "build": {
     "asar": false,
+    "beforePack": "scripts/fetch-podman.mjs",
     "publish": [
       {
         "provider": "github",
@@ -34,7 +36,19 @@
       "!**/*.ts",
       "!*.map",
       "!package.json",
-      "!package-lock.json"
+      "!package-lock.json",
+      "!bin/**",
+      "!scripts/**"
+    ],
+    "extraResources": [
+      {
+        "from": "bin/${os}-${arch}",
+        "to": "bin",
+        "filter": [
+          "**/*",
+          "!.version"
+        ]
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -44,7 +58,10 @@
         "NSCameraUsageDescription": "Camera Required for uploading photos and Video Calls"
       },
       "entitlements": "build/entitlements.mac.plist",
-      "target": "dmg"
+      "target": "dmg",
+      "signIgnore": [
+        "Contents/Resources/bin/"
+      ]
     },
     "linux": {
       "category": "Office",
@@ -60,7 +77,8 @@
     "electron-debug": "^5.0.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~7.0.2",
-    "wait-on": "^9.1.0"
+    "wait-on": "^9.1.0",
+    "yauzl": "^3.4.0"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
