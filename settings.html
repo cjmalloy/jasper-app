@@ -85,6 +85,7 @@
     const fields = [
       'locale',
       'appVersion',
+      'containerEngine',
       'serverVersion',
       'serverPort',
       'serverProfiles',
@@ -215,6 +216,15 @@
   <div class="form-array">
     <input id="appVersion" type="text" disabled>
     <div title="Check for updates on startup" class="au"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
+  </div>
+
+  <label for="containerEngine">Container Engine</label>
+  <div class="form-array">
+    <select id="containerEngine">
+      <option value="auto">Auto (Docker if running, otherwise Podman)</option>
+      <option value="podman">Podman</option>
+      <option value="docker">Docker</option>
+    </select>
   </div>
 
   <label for="serverVersion">Server Version</label>

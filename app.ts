@@ -17,6 +17,7 @@ import contextMenu from 'electron-context-menu';
 import log from 'electron-log';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
+import { ChildProcess, execFile, spawn } from 'child_process';
 import * as fs from 'fs';
 import { EventEmitter } from 'events';
 import { spawn as ptySpawn } from '@lydell/node-pty';
@@ -27,7 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 if (process.platform !== 'win32') {
-  process.env.PATH = process.env.PATH + ':/usr/local/bin';
+  process.env.PATH = process.env.PATH + ':/usr/local/bin:/opt/podman/bin';
 }
 
 contextMenu({
@@ -72,8 +73,10 @@ try {
     ngrokUrl: '',
     ngrokToken: '',
     showLogsOnStart: false,
+    containerEngine: 'auto',
   };
 }
+data.containerEngine ??= 'auto';
 
 const contextMenuTemplate = [
   {label: 'Show Window', click: () => createMainWindow(false)},
@@ -123,33 +126,27 @@ function resizePtys(size: PtySize | null) {
     }
   }
 }
-function dc(command: string) {
-  // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
-  const emitter = new EventEmitter();
-  const sendLogs = (data: string) => {
-    process.stdout.write(data);
-    logBuffer = (logBuffer + data).slice(-maxLogBuffer);
-    // Only send live logs to subscribers; the buffer is replayed on subscribe
-    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
-      win.webContents.send('stream-logs', data);
-    }
-    if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
-      logs.webContents.send('stream-logs', data);
-    }
-  };
+
+function sendLogs(data: string) {
+  process.stdout.write(data);
+  logBuffer = (logBuffer + data).slice(-maxLogBuffer);
+  // Only send live logs to subscribers; the buffer is replayed on subscribe
+  if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
+    win.webContents.send('stream-logs', data);
+  }
+  if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
+    logs.webContents.send('stream-logs', data);
+  }
+}
+
+function runPty(file: string, args: string[], env: Env, emitter = new EventEmitter()) {
   try {
-    const pty = ptySpawn('docker', [
-      'compose',
-      '-f', serverConfig,
-      ...data.cfToken ? ['--profile', 'cf'] : [],
-      ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-      command,
-    ], {
+    // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
+    const pty = ptySpawn(file, args, {
       name: 'xterm-color',
       cols: ptySize.cols,
       rows: ptySize.rows,
-      // Disable the interactive "v View in Docker Desktop ..." menu
-      env: { ...process.env, COMPOSE_MENU: 'false' } as { [key: string]: string },
+      env,
     });
     livePtys.add(pty);
     pty.onData(sendLogs);
@@ -160,9 +157,169 @@ function dc(command: string) {
     });
   } catch (err) {
     // Emit asynchronously so callers can attach 'error' listeners first
-    setImmediate(() => emitter.emit('error', err));
+    setImmediate(() => emitError(emitter, err));
   }
   return emitter;
+}
+
+function emitError(emitter: EventEmitter, err: any) {
+  if (emitter.listenerCount('error')) {
+    emitter.emit('error', err);
+  } else {
+    console.log('' + err);
+  }
+  emitter.emit('exit', null, null);
+  emitter.emit('close', null, null);
+}
+
+function dc(command: string) {
+  const emitter = new EventEmitter();
+  getEngine()
+    .then(engine => runPty(engine.cmd, [
+      'compose',
+      '-f', serverConfig,
+      ...data.cfToken ? ['--profile', 'cf'] : [],
+      ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
+      command,
+    ], engine.env, emitter))
+    .catch(err => emitError(emitter, err));
+  return emitter;
+}
+
+type Env = { [key: string]: string };
+type Engine = {
+  name: 'Docker' | 'Podman';
+  cmd: string;
+  env: Env;
+};
+
+let enginePromise: Promise<Engine> | null = null;
+let engineFailed = false;
+let startedMachine: { podman: Engine, name: string } | null = null;
+
+function getEngine() {
+  if (!enginePromise) {
+    engineFailed = false;
+    enginePromise = resolveEngine();
+    enginePromise.catch(() => engineFailed = true);
+  }
+  return enginePromise;
+}
+
+function bundledBinDir() {
+  if (app.isPackaged) return path.join(process.resourcesPath, 'bin');
+  const os = { darwin: 'mac', win32: 'win' }[process.platform as string] ?? process.platform;
+  return path.join(__dirname, 'bin', `${os}-${process.arch}`);
+}
+
+function bundledBin(name: string) {
+  const file = path.join(bundledBinDir(), process.platform === 'win32' ? name + '.exe' : name);
+  return fs.existsSync(file) ? file : null;
+}
+
+function exec(file: string, args: string[], env: Env = process.env as Env, timeout = 30_000): Promise<string> {
+  return new Promise((resolve, reject) => execFile(file, args, { env, timeout, windowsHide: true }, (err, stdout, stderr) => {
+    if (err) {
+      reject(new Error(`${[file, ...args].join(' ')} failed: ${stderr || err.message}`));
+    } else {
+      resolve(stdout);
+    }
+  }));
+}
+
+function dockerEngine(): Engine {
+  return {
+    name: 'Docker',
+    cmd: 'docker',
+    // Disable the interactive "v View in Docker Desktop ..." menu
+    env: { ...process.env, COMPOSE_MENU: 'false' } as Env,
+  };
+}
+
+function podmanEngine(): Engine {
+  const env = { ...process.env, COMPOSE_MENU: 'false', PODMAN_COMPOSE_WARNING_LOGS: 'false' } as Env;
+  // Let podman compose point docker-compose at the podman socket
+  delete env.DOCKER_HOST;
+  const podman = bundledBin('podman');
+  if (podman) env.CONTAINERS_HELPER_BINARY_DIR = bundledBinDir();
+  const compose = bundledBin('docker-compose');
+  if (compose) env.PODMAN_COMPOSE_PROVIDER = compose;
+  return {
+    name: 'Podman',
+    cmd: podman ?? 'podman',
+    env,
+  };
+}
+
+async function resolveEngine(): Promise<Engine> {
+  const preference = data.containerEngine || 'auto';
+  if (preference === 'docker') return dockerEngine();
+  if (preference === 'auto') {
+    // Keep using Docker if it is already installed and running
+    if (await exec('docker', ['info'], process.env as Env, 15_000).then(() => true, () => false)) return dockerEngine();
+    const podman = podmanEngine();
+    if (!bundledBin('podman') && !await exec(podman.cmd, ['--version'], podman.env).then(() => true, () => false)) {
+      return dockerEngine();
+    }
+  }
+  const podman = podmanEngine();
+  console.log(`Using ${podman.cmd}`);
+  if (process.platform === 'darwin' || process.platform === 'win32') {
+    await startPodmanMachine(podman);
+  } else {
+    await startPodmanService(podman);
+  }
+  return podman;
+}
+
+let podmanService: ChildProcess | null = null;
+async function startPodmanService(podman: Engine) {
+  // podman compose needs the API socket, start it if systemd has not
+  const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.()}`;
+  const socket = process.getuid?.() === 0 ? '/run/podman/podman.sock' : path.join(runtimeDir, 'podman', 'podman.sock');
+  if (fs.existsSync(socket)) return;
+  podmanService = spawn(podman.cmd, ['system', 'service', '--time=0'], { env: podman.env, stdio: 'ignore' });
+  podmanService.once('exit', () => podmanService = null);
+  for (let i = 0; i < 100 && !fs.existsSync(socket); i++) {
+    if (!podmanService) throw new Error('podman system service exited');
+    await wait(100);
+  }
+}
+
+type PodmanMachine = { Name: string, Default: boolean, Running: boolean, Starting: boolean };
+async function listPodmanMachines(podman: Engine): Promise<PodmanMachine[]> {
+  return JSON.parse(await exec(podman.cmd, ['machine', 'list', '--format', 'json'], podman.env) || '[]') ?? [];
+}
+
+function runPodman(podman: Engine, args: string[]) {
+  sendLogs(`> podman ${args.join(' ')}\r\n`);
+  return new Promise<void>((resolve, reject) => runPty(podman.cmd, args, podman.env)
+    .once('error', reject)
+    .once('exit', code => code === 0 ? resolve() : reject(new Error(`podman ${args.join(' ')} exited with code ${code}`))));
+}
+
+async function startPodmanMachine(podman: Engine) {
+  let machines = await listPodmanMachines(podman);
+  if (!machines.length) {
+    // Downloads the VM image on first run
+    await runPodman(podman, ['machine', 'init', '--memory', '4096']);
+    machines = await listPodmanMachines(podman);
+  }
+  const machine = machines.find(m => m.Default) ?? machines[0];
+  if (!machine) throw new Error('No podman machine found');
+  if (machine.Running || machine.Starting || machines.some(m => m.Running)) return;
+  await runPodman(podman, ['machine', 'start', machine.Name]);
+  startedMachine = { podman, name: machine.Name };
+}
+
+function stopPodman(): Promise<void> {
+  podmanService?.kill();
+  podmanService = null;
+  if (!startedMachine) return Promise.resolve();
+  const { podman, name } = startedMachine;
+  startedMachine = null;
+  return exec(podman.cmd, ['machine', 'stop', name], podman.env, 60_000)
+    .then(() => {}, err => console.log('' + err));
 }
 
 function getToken(userTag: string, secret: string) {
@@ -220,21 +377,21 @@ function startServer() {
   }
   return dc('up')
     .once('error', err => {
-      dialog.showErrorBox('Docker Compose Missing',
-        'This application requires Docker Compose to be installed.\n' +
-        'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+      dialog.showErrorBox('Container Engine Missing',
+        'This application requires Podman or Docker Compose to be installed.\n' +
+        'Download Podman at https://podman.io/\n\n' +
         err);
       app.quit();
     })
     .once('exit', (code, signal) => {
       if (code === 1) {
-        dialog.showErrorBox('Docker Not Running',
-          'This application requires Docker to be running.\n' +
-          'Start Docker and try again.\n');
+        getEngine().then(engine => dialog.showErrorBox(`${engine.name} Not Running`,
+          `This application requires ${engine.name} to be running.\n` +
+          `Start ${engine.name} and try again.\n`));
       } else if (code !== null) {
-        console.log(`docker process exited with code ${code}`);
+        console.log(`compose process exited with code ${code}`);
       } else if (signal !== null) {
-        console.log(`docker process terminated by signal ${signal}`);
+        console.log(`compose process terminated by signal ${signal}`);
       }
     });
 }
@@ -246,7 +403,7 @@ function shutdown() {
     { label: 'Force Quit', click: forceQuit },
   ]));
   dc('down')
-    .once('close', forceQuit);
+    .once('close', () => stopPodman().then(forceQuit));
   if (win) win.destroy();
   if (logs) logs.destroy();
   if (settings) settings.destroy();
@@ -481,6 +638,7 @@ async function waitForHealth(url: string, firstDelay = 100): Promise<null> {
 }
 
 function updateSettings(value: any) {
+  const engineChanged = engineFailed || (value.containerEngine ?? data.containerEngine) !== data.containerEngine;
   data = {
     ...data,
     ...value,
@@ -493,7 +651,11 @@ function updateSettings(value: any) {
     win.webContents.clearHistory();
     win.show();
   }
-  dc('down').once('close', () => {
+  dc('down').once('close', async () => {
+    if (engineChanged) {
+      await stopPodman();
+      enginePromise = null;
+    }
     startServer();
     createMainWindow(true);
     win.show();
