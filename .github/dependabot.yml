@@ -18,7 +18,3 @@ updates:
   directory: /
   schedule:
     interval: daily
-  cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
