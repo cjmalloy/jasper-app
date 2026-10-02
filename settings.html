@@ -55,6 +55,12 @@
       animation: fadein 2s ease-in-out 1s;
       animation-iteration-count: infinite;
     }
+    .form-array .loading {
+      min-width: 60px;
+    }
+    .form-array .update {
+      min-width: 60px;
+    }
     select.version {
       width: 20px;
       text-indent: -9999px; 
@@ -111,6 +117,13 @@
       'recycler',
       'preload',
     ];
+    const versions = [
+      'serverVersion',
+      'clientVersion',
+      'databaseVersion',
+      'sshVersion',
+    ];
+    let saved = {};
     const flags = [
       'autoUpdate',
       'pullClient',
@@ -121,6 +134,7 @@
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
+      saved = { ...settings };
       if (settings.serverProfiles) {
         const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
         for (const p of profiles) {
@@ -132,6 +146,9 @@
       }
       for (const f of flags) {
         $('#' + f).prop('checked', settings[f] ?? false);
+      }
+      for (const f of versions) {
+        checkVersion(f);
       }
     });
 
@@ -165,6 +182,19 @@
       window.close();
     }
 
+    function checkVersion(f) {
+      $(`#${f}-button`).prop('disabled', $('#' + f).val() === (saved[f] ?? ''));
+    }
+
+    function updateVersion(f) {
+      const value = $('#' + f).val();
+      saved[f] = value;
+      checkVersion(f);
+      window.electronAPI.updateVersion(f, value);
+      $(`#${f}-button`).css('display', 'none');
+      $(`#${f}-loading`).css('display', 'block');
+    }
+
     function patch(f) {
       window.electronAPI.patchSettings({name: f, value: $('#' + f).checked});
     }
@@ -182,6 +212,7 @@
     function finished(id) {
       $(`#${id}-button`).css('display', 'block');
       $(`#${id}-loading`).css('display', 'none');
+      if (versions.includes(id)) checkVersion(id);
     }
 
     function updateProfiles() {
@@ -219,13 +250,15 @@
 
   <label for="serverVersion">Server Version</label>
   <div class="form-array">
-    <input id="serverVersion" type="text">
-    <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val())">
+    <input id="serverVersion" type="text" oninput="checkVersion('serverVersion')">
+    <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val()); checkVersion('serverVersion')">
       <option>latest</option>
       <option>v1</option>
       <option>v1.3</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
+    <button id="serverVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('serverVersion')" disabled>Update</button>
+    <span id="serverVersion-loading" class="loading">...</span>
   </div>
 
   <label for="serverPort">Server Port</label>
@@ -267,13 +300,15 @@
 
   <label for="clientVersion">UI Version</label>
   <div class="form-array">
-    <input id="clientVersion" type="text">
-    <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val())">
+    <input id="clientVersion" type="text" oninput="checkVersion('clientVersion')">
+    <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val()); checkVersion('clientVersion')">
       <option>latest</option>
       <option>v1</option>
       <option>v1.3</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
+    <button id="clientVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('clientVersion')" disabled>Update</button>
+    <span id="clientVersion-loading" class="loading">...</span>
   </div>
 
   <label for="clientTitle">UI Title</label>
@@ -284,8 +319,8 @@
 
   <label for="databaseVersion">Postgres Version</label>
   <div class="form-array">
-    <input id="databaseVersion" type="text">
-    <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
+    <input id="databaseVersion" type="text" oninput="checkVersion('databaseVersion')">
+    <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val()); checkVersion('databaseVersion')">
       <option>latest</option>
       <option>18</option>
       <option>17</option>
@@ -297,6 +332,8 @@
       <option>11</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
+    <button id="databaseVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('databaseVersion')" disabled>Update</button>
+    <span id="databaseVersion-loading" class="loading">...</span>
   </div>
 
   <label for="dataDir">Postgres Directory</label>
@@ -307,13 +344,15 @@
 
   <label for="sshVersion">SSH Version</label>
   <div class="form-array">
-    <input id="sshVersion" type="text">
-    <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val())">
+    <input id="sshVersion" type="text" oninput="checkVersion('sshVersion')">
+    <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val()); checkVersion('sshVersion')">
       <option>latest</option>
       <option>v1</option>
       <option>v1.3</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullSsh">🔄</label><input id="pullSsh" type="checkbox"></div>
+    <button id="sshVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('sshVersion')" disabled>Update</button>
+    <span id="sshVersion-loading" class="loading">...</span>
   </div>
 
   <label for="sshPort">SSH Port</label>
