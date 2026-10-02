@@ -123,7 +123,7 @@ function resizePtys(size: PtySize | null) {
     }
   }
 }
-function dc(command: string) {
+function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
   const sendLogs = (data: string) => {
@@ -143,7 +143,7 @@ function dc(command: string) {
       '-f', serverConfig,
       ...data.cfToken ? ['--profile', 'cf'] : [],
       ...data.ngrokToken ? ['--profile', 'ngrok'] : [],
-      command,
+      ...command,
     ], {
       name: 'xterm-color',
       cols: ptySize.cols,
@@ -181,10 +181,13 @@ function getToken(userTag: string, secret: string) {
   return body + '.' + digest;
 }
 
-function writeEnv() {
+let key = '';
+function writeEnv(rotateKey = false) {
   // DEBUG: Use with profile dev
-  // const key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
-  const key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
+  // key = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
+  // Keep the key stable unless all services are restarting, so services
+  // restarted individually still share the same key
+  if (rotateKey || !key) key = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
   process.env.JASPER_LOCALE = data.locale ?? '';
   process.env.JASPER_SERVER_PROFILES = data.serverProfiles ?? '';
   process.env.JASPER_SERVER_DEFAULT_ROLE = data.serverDefaultRole || 'ROLE_ANONYMOUS';
@@ -214,7 +217,7 @@ function writeEnv() {
 }
 
 function startServer() {
-  writeEnv();
+  writeEnv(true);
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
@@ -500,6 +503,44 @@ function updateSettings(value: any) {
   });
 }
 
+const versionServices: Record<string, () => string[]> = {
+  serverVersion: () => ['web'],
+  clientVersion: () => data.cfToken ? ['client', 'proxy'] : ['client'],
+  databaseVersion: () => ['db'],
+  sshVersion: () => ['ssh'],
+};
+
+function updateVersion(name: string, value: any) {
+  if (!Object.prototype.hasOwnProperty.call(versionServices, name) || typeof value !== 'string') return;
+  const finished = () => {
+    if (settings && !settings.isDestroyed()) {
+      settings.webContents.send('finished', name);
+    }
+  };
+  data[name] = value;
+  writeEnv();
+  writeData();
+  const reloadUi = name !== 'sshVersion';
+  if (reloadUi) {
+    firstLoad = false;
+    if (win && !win.isDestroyed()) {
+      win.loadFile(path.join(__dirname, 'loading.html'));
+      win.webContents.clearHistory();
+      win.show();
+      if (settings && !settings.isDestroyed() && settings.isVisible()) settings.focus();
+    }
+  }
+  dc('up', '-d', '--no-deps', ...versionServices[name]())
+    .once('error', err => {
+      console.log(`Failed to update ${name}: ${err}`);
+      finished();
+    })
+    .once('close', () => {
+      if (!reloadUi) return finished();
+      createMainWindow(true).then(finished, finished);
+    });
+}
+
 function patchSettings(name: string, value: any) {
   data[name] = value;
   writeEnv();
@@ -515,6 +556,7 @@ let settings: BrowserWindow;
 app.on('ready', () => {
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
+  ipcMain.on('update-version', (_event, name, value) => updateVersion(name, value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
