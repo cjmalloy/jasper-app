@@ -60,7 +60,7 @@
     "electron-debug": "^5.0.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~7.0.2",
-    "wait-on": "^9.1.0"
+    "wait-on": "^9.4.0"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
