@@ -253,7 +253,7 @@
     <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val()); checkVersion('serverVersion')">
       <option>latest</option>
       <option>v1</option>
-      <option>v1.3</option>
+      <option>v1.4</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
     <button id="serverVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('serverVersion')" disabled>Update</button>
@@ -300,7 +300,7 @@
     <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val()); checkVersion('clientVersion')">
       <option>latest</option>
       <option>v1</option>
-      <option>v1.3</option>
+      <option>v1.4</option>
     </select>
     <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
     <button id="clientVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('clientVersion')" disabled>Update</button>
