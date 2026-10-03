@@ -72,6 +72,7 @@ try {
     ngrokUrl: '',
     ngrokToken: '',
     showLogsOnStart: false,
+    logServices: ['web'],
   };
 }
 
@@ -163,6 +164,22 @@ function dc(...command: string[]) {
     setImmediate(() => emitter.emit('error', err));
   }
   return emitter;
+}
+
+function getServices() {
+  return [
+    'web', 'db', 'client', 'ssh',
+    ...data.cfToken ? ['cf', 'proxy'] : [],
+    ...data.ngrokToken ? ['ngrok'] : [],
+  ];
+}
+
+function sendLogServices() {
+  if (!logs || logs.isDestroyed()) return;
+  logs.webContents.send('log-services', {
+    services: getServices(),
+    enabled: Array.isArray(data.logServices) ? data.logServices : ['web'],
+  });
 }
 
 function getToken(userTag: string, secret: string) {
@@ -490,6 +507,7 @@ function updateSettings(value: any) {
   };
   writeEnv();
   writeData();
+  sendLogServices();
   firstLoad = false;
   if (win && !win.isDestroyed()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
@@ -602,7 +620,15 @@ app.on('ready', () => {
       // Unsubscribe on reload; the new page must fetch again
       wc.on('did-start-loading', () => logSubscribers.delete(wc));
     }
+    if (logs && !logs.isDestroyed() && wc === logs.webContents) sendLogServices();
     if (logBuffer) wc.send('stream-logs', logBuffer);
+  });
+  ipcMain.on('set-log-services', (event, value) => {
+    if (!logs || logs.isDestroyed() || event.sender !== logs.webContents) return;
+    if (!Array.isArray(value) || !value.every(s => typeof s === 'string')) return;
+    const services = getServices();
+    data.logServices = [...new Set(value)].filter(s => services.includes(s));
+    writeData();
   });
   ipcMain.on('resize-pty', (event, size) => {
     if (!size?.cols || !size?.rows) return;

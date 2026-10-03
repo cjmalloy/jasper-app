@@ -19,26 +19,127 @@
         color-scheme: dark;
       }
     }
+    body {
+      display: flex;
+      flex-direction: column;
+      font-family: sans-serif;
+      font-size: 13px;
+    }
+    #services {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      padding: 4px 8px;
+    }
+    #services label {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+    }
     #terminal {
-      height: 100%;
+      flex: 1;
+      min-height: 0;
     }
   </style>
   <script>
+    // Hide lines prefixed by "<service>-N | " for services that are not checked.
+    // Lines without a service prefix (compose status, pull progress) are always shown.
+    const maxRaw = 512 * 1024;
+    const ansi = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b(\[[0-9;?]*)?$/g;
+    let services = [];
+    let enabled = new Set(['web']);
+    let raw = '';
+    let line = '';
+    let lineState = null;
+    function lineVisible(text, complete) {
+      const plain = text.replace(ansi, '').replace(/^\r+/, '');
+      const m = plain.match(/^([A-Za-z0-9][\w.-]*?)[-_]\d+\s*\|/);
+      if (m) {
+        const service = services.find(s => m[1] === s || m[1].endsWith('-' + s) || m[1].endsWith('_' + s));
+        return !service || enabled.has(service);
+      }
+      if (!complete && plain.length < 100 && /^[\w.-]*\s*$/.test(plain)) return null;
+      return true;
+    }
+    function filter(data) {
+      let out = '';
+      for (const part of data.split(/(\n)/)) {
+        if (part === '\n') {
+          if (lineState === null) lineState = lineVisible(line, true);
+          if (lineState) out += line + '\n';
+          line = '';
+          lineState = null;
+        } else if (part) {
+          if (lineState === null) {
+            line += part;
+            lineState = lineVisible(line, false);
+            if (lineState) {
+              out += line;
+              line = '';
+            }
+          } else if (lineState) {
+            out += part;
+          }
+        }
+      }
+      return out;
+    }
     // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
     window.electronAPI.streamLogs((event, data) => {
+      raw += data;
+      if (raw.length > maxRaw) {
+        raw = raw.slice(-maxRaw);
+        raw = raw.slice(raw.indexOf('\n') + 1);
+      }
       if (term) {
-        term.write(data);
+        term.write(filter(data));
       } else {
         pending.push(data);
       }
     });
+    function refilter() {
+      if (!term) return;
+      line = '';
+      lineState = null;
+      term.reset();
+      term.write(filter(raw));
+    }
+    function renderServices() {
+      const el = document.getElementById('services');
+      el.replaceChildren(...services.map(s => {
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = enabled.has(s);
+        input.addEventListener('change', () => {
+          if (input.checked) {
+            enabled.add(s);
+          } else {
+            enabled.delete(s);
+          }
+          window.electronAPI.setLogServices([...enabled]);
+          refilter();
+        });
+        label.append(input, s);
+        return label;
+      }));
+    }
+    window.electronAPI.handleLogServices((event, value) => {
+      services = value.services;
+      enabled = new Set(value.enabled);
+      if (document.readyState !== 'loading') renderServices();
+      refilter();
+    });
+    document.addEventListener('DOMContentLoaded', renderServices);
   </script>
   <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 </head>
 <body>
+<div id="services"></div>
 <div id="terminal"></div>
 <script>
   // Match the OS color scheme
@@ -78,7 +179,7 @@
   });
   resizeObserver.observe(terminal);
   term = t;
-  while (pending.length) term.write(pending.shift());
+  while (pending.length) term.write(filter(pending.shift()));
   window.electronAPI.fetchLogs();
 </script>
 </body>
