@@ -5,8 +5,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: "curl -f http://localhost/management/health/readiness"
-    ports:
-      - "${JASPER_SERVER_PORT:-8081}:80"
+    networks:
+      - data
+      - backend
     environment:
       SERVER_PORT: 80
       SPRING_PROFILES_ACTIVE: "${JASPER_SERVER_PROFILES:-prod,jwt,storage}"
@@ -28,9 +29,11 @@ services:
     depends_on:
       - db
   db:
-    image: "postgres:${JASPER_DATABASE_VERSION:-17}"
+    image: "postgres:${JASPER_DATABASE_VERSION:-18}"
     pull_policy: "${JASPER_DATABASE_PULL:-missing}"
     restart: unless-stopped
+    networks:
+      - data
     environment:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: "${JASPER_DATABASE_PASSWORD:-jasper}"
@@ -41,14 +44,15 @@ services:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
     pull_policy: "${JASPER_CLIENT_PULL:-missing}"
     restart: unless-stopped
+    networks:
+      - backend
     ports:
-      - "${JASPER_CLIENT_PORT:-8082}:80"
+      - "127.0.0.1:${JASPER_CLIENT_PORT:-8082}:80"
     environment:
       JASPER_API_PROXY: "http://web:80"
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
       JASPER_LOCALE: "${JASPER_LOCALE}"
       JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
-      JASPER_TOKEN: "${JASPER_CLIENT_TOKEN}"
       JASPER_PREFETCH: "${JASPER_PREFETCH:-true}"
       NGINX_ENTRYPOINT_QUIET_LOGS: 1
     depends_on:
@@ -60,11 +64,13 @@ services:
     healthcheck:
       test: "/healthcheck.sh"
       retries: 1
+    networks:
+      - backend
+      - edge
     ports:
-      - "${JASPER_SSH_PORT:-8022}:22"
+      - "127.0.0.1:${JASPER_SSH_PORT:-8022}:22"
     environment:
       UPSTREAM: "http://web:80"
-      TOKEN: "${JASPER_SSH_TOKEN}"
     volumes:
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/config:/config"
       - "${JASPER_STORAGE_DIR:-/var/lib/jasper}/default/secrets:/secrets"
@@ -76,6 +82,8 @@ services:
     image: cloudflare/cloudflared
     pull_policy: always
     restart: unless-stopped
+    networks:
+      - edge
     command: tunnel run
     environment:
       TUNNEL_TOKEN: "${CLOUDFLARE_TOKEN}"
@@ -87,6 +95,9 @@ services:
     image: "ghcr.io/cjmalloy/jasper-ui:${JASPER_CLIENT_VERSION:-latest}"
     pull_policy: "${JASPER_CLIENT_PULL:-missing}"
     restart: unless-stopped
+    networks:
+      - backend
+      - edge
     environment:
       JASPER_API_PROXY: "http://web:80"
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
@@ -101,9 +112,18 @@ services:
     image: ngrok/ngrok
     pull_policy: always
     restart: unless-stopped
-    network_mode: "host"
-    command: "tcp localhost:${JASPER_SSH_PORT:-8022} --url=tcp://${NGROK_URL}"
+    networks:
+      - edge
+    command: "tcp ssh:22 --url=tcp://${NGROK_URL}"
     environment:
       NGROK_AUTHTOKEN: "${NGROK_TOKEN}"
     depends_on:
       - ssh
+networks:
+  # Only the server can reach the database, and the database can't reach anything else
+  data:
+    internal: true
+  # Containers that talk to the server. Not internal so the server can fetch, replicate and run scripts.
+  backend:
+  # Tunnels. They can only reach the anonymous proxy and SSH, never the server directly.
+  edge:
