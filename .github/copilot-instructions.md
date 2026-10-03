@@ -11,7 +11,7 @@ reports `UP`.
 | File | Purpose |
 | --- | --- |
 | `app.ts` | Electron main process: settings, tray, windows, docker compose lifecycle, IPC handlers, auto-update. Compiled to `app.js` (git-ignored). |
-| `preload.js` | `contextBridge` exposes `window.electronAPI`. Plain JS, not compiled. Every IPC channel here must match an `ipcMain.on`/`handle` in `app.ts`. |
+| `preload.js` | `contextBridge` exposes `window.electronAPI`. Plain JS, not compiled. Renderer→main requests must match an `ipcMain.on`/`handle` in `app.ts`; main→renderer subscriptions must match a `webContents.send` there. |
 | `loading.html`, `logs.html`, `settings.html` | Renderer views. They load `@xterm/*` and `jquery` straight from `node_modules/...`. That's why those packages are runtime `dependencies` and why `asar` is `false`. Don't move them to `devDependencies`. |
 | `docker-compose.yaml` | Services. Every value comes from `JASPER_*` env vars that `writeEnv()` in `app.ts` sets. |
 | `build/` | Icon and macOS entitlements for electron-builder. |
