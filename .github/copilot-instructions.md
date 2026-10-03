@@ -86,8 +86,11 @@ curl -s localhost:8081/management/health/readiness   # expect {"status":"UP"}
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8082  # expect 200
 docker ps                                             # jasper-app-{web,db,client,ssh}-1
 kill -TERM <pid of node_modules/electron/dist/electron>  # graceful: runs `docker compose down`
-docker ps -a                                          # should be empty
-sudo rm -rf /tmp/jasper-cfg                           # data dirs are root-owned (see below)
+# Wait for the Electron main process to exit before continuing.
+docker ps -a  # Confirm this smoke run's Jasper containers have been removed.
+# If Docker fails or any of those containers remain, stop here and resolve cleanup.
+# Only after confirming shutdown and container removal, run this separately:
+# sudo rm -rf /tmp/jasper-cfg  # data dirs are root-owned
 ```
 
 ### Dev vs. packaged differences (easy to misdiagnose)
