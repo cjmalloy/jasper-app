@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDir: (dir) => ipcRenderer.send('open-dir', dir),
   saveAs: (buffer, defaultFilename) => ipcRenderer.invoke('save-as', buffer, defaultFilename),
   command: (id, args) => ipcRenderer.send('command', id, args),
+  updateVersion: (name, value) => ipcRenderer.send('update-version', name, value),
 });

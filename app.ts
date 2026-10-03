@@ -142,7 +142,7 @@ function resizePtys(size: PtySize | null) {
     }
   }
 }
-function dc(command: string) {
+function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
   const sendLogs = (data: string) => {
@@ -160,9 +160,9 @@ function dc(command: string) {
     const pty = ptySpawn('docker', [
       'compose',
       '-f', serverConfig,
-      ...data.cfToken || command === 'down' ? ['--profile', 'cf'] : [],
-      ...data.ngrokToken || command === 'down' ? ['--profile', 'ngrok'] : [],
-      command,
+      ...data.cfToken || command[0] === 'down' ? ['--profile', 'cf'] : [],
+      ...data.ngrokToken || command[0] === 'down' ? ['--profile', 'ngrok'] : [],
+      ...command,
     ], {
       name: 'xterm-color',
       cols: ptySize.cols,
@@ -517,6 +517,43 @@ function updateSettings(value: any) {
   });
 }
 
+const versionServices: Record<string, () => string[]> = {
+  serverVersion: () => ['web'],
+  clientVersion: () => data.cfToken ? ['client', 'proxy'] : ['client'],
+  databaseVersion: () => ['db'],
+  sshVersion: () => ['ssh'],
+};
+
+function updateVersion(name: string, value: any) {
+  if (!Object.prototype.hasOwnProperty.call(versionServices, name) || typeof value !== 'string') return;
+  const finished = () => {
+    if (settings && !settings.isDestroyed()) {
+      settings.webContents.send('finished', name);
+    }
+  };
+  data[name] = value;
+  writeData();
+  const reloadUi = name !== 'sshVersion';
+  if (reloadUi) {
+    firstLoad = false;
+    if (win && !win.isDestroyed()) {
+      win.loadFile(path.join(__dirname, 'loading.html'));
+      win.webContents.clearHistory();
+      win.show();
+      if (settings && !settings.isDestroyed() && settings.isVisible()) settings.focus();
+    }
+  }
+  dc('up', '-d', '--no-deps', ...versionServices[name]())
+    .once('error', err => {
+      console.log(`Failed to update ${name}: ${err}`);
+      finished();
+    })
+    .once('close', () => {
+      if (!reloadUi) return finished();
+      createMainWindow(true).then(finished, finished);
+    });
+}
+
 function patchSettings(name: string, value: any) {
   data[name] = value;
   writeData();
@@ -531,6 +568,7 @@ let settings: BrowserWindow;
 app.on('ready', () => {
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
+  ipcMain.on('update-version', (_event, name, value) => updateVersion(name, value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));

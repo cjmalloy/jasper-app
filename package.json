@@ -55,12 +55,12 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^44.4.5",
+    "electron": "^44.5.1",
     "electron-builder": "^26.15.3",
     "electron-debug": "^5.0.0",
     "electron-reloader": "^1.2.3",
     "typescript": "~7.0.2",
-    "wait-on": "^9.1.0"
+    "wait-on": "^9.5.1"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
