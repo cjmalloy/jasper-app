@@ -9,6 +9,7 @@ import {
   nativeImage,
   Notification,
   screen,
+  session,
   shell,
   systemPreferences,
   Tray
@@ -95,6 +96,23 @@ function getServerHealthCheck() {
   return getEntry() + '/api/v1/user/whoami';
 }
 
+/**
+ * Send the server key from the Jasper window only. Anything else, like a browser tab, is anonymous.
+ * The filter omits the port so the hook still applies if the client port changes.
+ */
+function registerKeyHook() {
+  const urls = ['http://localhost/*', 'http://127.0.0.1/*', 'ws://localhost/*', 'ws://127.0.0.1/*'];
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
+    if (new URL(details.url).port !== String(data.clientPort)) return callback({});
+    const requestHeaders = Object.fromEntries(Object.entries(details.requestHeaders)
+      .filter(([name]) => name.toLowerCase() !== 'x-jasper-key'));
+    if (key && win && !win.isDestroyed() && details.webContentsId === win.webContents.id) {
+      requestHeaders['X-Jasper-Key'] = key;
+    }
+    callback({ requestHeaders });
+  });
+}
+
 function notify(command: string) {
   return dc(command).once('close', () => {
     if (settings && !settings.isDestroyed()) {
@@ -163,21 +181,6 @@ function dc(...command: string[]) {
   return emitter;
 }
 
-function getToken(userTag: string, secret: string) {
-  const header = {
-    alg: 'HS512',
-    typ: 'JWT'
-  };
-  const payload = {
-    sub: userTag,
-    ...['+user', '_user'].includes(userTag) ? { auth: 'ROLE_ADMIN' } : {},
-  };
-  const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
-  const digest = hmac.update(body).digest('base64url');
-  return body + '.' + digest;
-}
-
 let key = '';
 function generateKey() {
   return crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
@@ -203,7 +206,6 @@ function getEnv(): { [key: string]: string } {
     JASPER_CLIENT_PULL: data.pullClient ? 'always' : 'missing',
     JASPER_CLIENT_PORT: data.clientPort ?? '',
     JASPER_CLIENT_TITLE: data.clientTitle ?? '',
-    JASPER_CLIENT_TOKEN: getToken('+user', key),
     JASPER_DATABASE_VERSION: data.databaseVersion ?? '',
     JASPER_DATABASE_PULL: data.pullDatabase ? 'always' : 'missing',
     JASPER_DATABASE_PASSWORD: data.dbPassword ?? '',
@@ -212,7 +214,6 @@ function getEnv(): { [key: string]: string } {
     JASPER_SSH_VERSION: data.sshVersion ?? '',
     JASPER_SSH_PULL: data.pullSsh ? 'always' : 'missing',
     JASPER_SSH_PORT: data.sshPort ?? '',
-    JASPER_SSH_TOKEN: getToken('+user', key),
     CLOUDFLARE_TOKEN: data.cfToken ?? '',
     NGROK_URL: data.ngrokUrl ?? '',
     NGROK_TOKEN: data.ngrokToken ?? '',
@@ -370,7 +371,7 @@ function createMainWindow(showLoading = false) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   return waitFor200(getEntry(), showLoading ? 5000 : 100)
-    .then(() => waitFor200(getServerHealthCheck()))
+    .then(() => waitFor200(getServerHealthCheck(), 100, { 'X-Jasper-Key': key }))
     .then(() => {
       firstLoad = true;
       if (win && !win.isDestroyed()) {
@@ -474,10 +475,10 @@ function wait(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitFor200(url: string, firstDelay = 100): Promise<null> {
-  return axios.get(url)
+async function waitFor200(url: string, firstDelay = 100, headers?: Record<string, string>): Promise<null> {
+  return axios.get(url, headers ? { headers, proxy: false } : {})
     .catch(() => ({status: 0}))
-    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
+    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100, headers)));
 }
 
 function updateSettings(value: any) {
@@ -548,6 +549,7 @@ let logs: BrowserWindow;
 let settings: BrowserWindow;
 
 app.on('ready', () => {
+  registerKeyHook();
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
   ipcMain.on('update-version', (_event, name, value) => updateVersion(name, value));
