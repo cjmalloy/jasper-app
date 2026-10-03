@@ -9,7 +9,6 @@ import {
   nativeImage,
   Notification,
   screen,
-  session,
   shell,
   systemPreferences,
   Tray
@@ -38,12 +37,6 @@ contextMenu({
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
-// New secret on every launch, only shared with the server
-// DEBUG: Use with profile dev
-// const serverKey = 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=';
-const serverKey = crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
-// Admin token for the Jasper window, only sent by the auth hook
-const windowToken = getToken('+user', serverKey);
 type ImageTags = {
   server: string[];
   client: string[];
@@ -98,21 +91,8 @@ function getEntry() {
   return `http://localhost:${data.clientPort}`;
 }
 
-/**
- * Add the window token to requests from the Jasper UI, or from no initiator (ex. window navigation).
- * Anything else, like a browser tab or a third party iframe, is anonymous.
- */
-function registerAuthHook() {
-  const origins = [`http://localhost:${data.clientPort}`, `http://127.0.0.1:${data.clientPort}`];
-  const urls = origins.flatMap(o => [o + '/*', o.replace('http', 'ws') + '/*']);
-  session.defaultSession.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
-    const requestHeaders = Object.fromEntries(Object.entries(details.requestHeaders)
-      .filter(([name]) => name.toLowerCase() !== 'authorization'));
-    if (!details.initiatorOrigin || origins.includes(details.initiatorOrigin)) {
-      requestHeaders['Authorization'] = 'Bearer ' + windowToken;
-    }
-    callback({ requestHeaders });
-  });
+function getServerHealthCheck() {
+  return getEntry() + '/api/v1/user/whoami';
 }
 
 function notify(command: string) {
@@ -190,7 +170,7 @@ function getToken(userTag: string, secret: string) {
   };
   const payload = {
     sub: userTag,
-    auth: 'ROLE_ADMIN',
+    ...['+user', '_user'].includes(userTag) ? { auth: 'ROLE_ADMIN' } : {},
   };
   const body = Buffer.from(JSON.stringify(header)).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
   const hmac = crypto.createHmac('sha512', Buffer.from(secret, 'base64'));
@@ -198,7 +178,15 @@ function getToken(userTag: string, secret: string) {
   return body + '.' + digest;
 }
 
+let key = '';
+function generateKey() {
+  return crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
+}
+
 function getEnv(): { [key: string]: string } {
+  // Keep the key stable unless all services are restarting, so services
+  // restarted individually still share the same key
+  if (!key) key = generateKey();
   return {
     ...process.env as { [key: string]: string },
     // Disable the interactive "v View in Docker Desktop ..." menu
@@ -210,11 +198,12 @@ function getEnv(): { [key: string]: string } {
     JASPER_SERVER_VERSION: data.serverVersion ?? '',
     JASPER_SERVER_PULL: data.pullServer ? 'always' : 'missing',
     JASPER_SERVER_HEAP: data.serverRam ?? '',
-    JASPER_SERVER_KEY: serverKey,
+    JASPER_SERVER_KEY: key,
     JASPER_CLIENT_VERSION: data.clientVersion ?? '',
     JASPER_CLIENT_PULL: data.pullClient ? 'always' : 'missing',
     JASPER_CLIENT_PORT: data.clientPort ?? '',
     JASPER_CLIENT_TITLE: data.clientTitle ?? '',
+    JASPER_CLIENT_TOKEN: getToken('+user', key),
     JASPER_DATABASE_VERSION: data.databaseVersion ?? '',
     JASPER_DATABASE_PULL: data.pullDatabase ? 'always' : 'missing',
     JASPER_DATABASE_PASSWORD: data.dbPassword ?? '',
@@ -223,6 +212,7 @@ function getEnv(): { [key: string]: string } {
     JASPER_SSH_VERSION: data.sshVersion ?? '',
     JASPER_SSH_PULL: data.pullSsh ? 'always' : 'missing',
     JASPER_SSH_PORT: data.sshPort ?? '',
+    JASPER_SSH_TOKEN: getToken('+user', key),
     CLOUDFLARE_TOKEN: data.cfToken ?? '',
     NGROK_URL: data.ngrokUrl ?? '',
     NGROK_TOKEN: data.ngrokToken ?? '',
@@ -230,6 +220,7 @@ function getEnv(): { [key: string]: string } {
 }
 
 function startServer() {
+  key = generateKey();
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
@@ -379,10 +370,7 @@ function createMainWindow(showLoading = false) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
   return waitFor200(getEntry(), showLoading ? 5000 : 100)
-    .then(() => {
-      registerAuthHook();
-      return waitForServer();
-    })
+    .then(() => waitFor200(getServerHealthCheck()))
     .then(() => {
       firstLoad = true;
       if (win && !win.isDestroyed()) {
@@ -490,12 +478,6 @@ async function waitFor200(url: string, firstDelay = 100): Promise<null> {
   return axios.get(url)
     .catch(() => ({status: 0}))
     .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100)));
-}
-
-async function waitForServer(): Promise<null> {
-  return axios.get(getEntry() + '/api/v1/user/whoami', { headers: { Authorization: 'Bearer ' + windowToken }, proxy: false })
-    .catch(() => ({status: 0}))
-    .then(res => res.status === 200 ? null : wait(100).then(() => waitForServer()));
 }
 
 function updateSettings(value: any) {
