@@ -54,6 +54,7 @@ services:
       JASPER_LOCALE: "${JASPER_LOCALE}"
       JASPER_VERSION: "${JASPER_CLIENT_VERSION:-latest}"
       JASPER_PREFETCH: "${JASPER_PREFETCH:-true}"
+      NGINX_ENTRYPOINT_QUIET_LOGS: 1
     depends_on:
       - web
   ssh:
