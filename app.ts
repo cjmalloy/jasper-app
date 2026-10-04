@@ -37,6 +37,7 @@ contextMenu({
 });
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
+const sftpConfig = path.join(__dirname, 'docker-compose.sftp.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 type ImageTags = {
   server: string[];
@@ -68,6 +69,7 @@ try {
     sshVersion: 'v1.3',
     pullSsh: true,
     sshPort: '8022',
+    sftpAccess: [],
     cfToken: '',
     ngrokUrl: '',
     ngrokToken: '',
@@ -159,6 +161,7 @@ function dc(...command: string[]) {
     const pty = ptySpawn('docker', [
       'compose',
       '-f', serverConfig,
+      ...getSftpAccess().length ? ['-f', sftpConfig] : [],
       ...data.cfToken || command[0] === 'down' ? ['--profile', 'cf'] : [],
       ...data.ngrokToken || command[0] === 'down' ? ['--profile', 'ngrok'] : [],
       ...command,
@@ -198,6 +201,36 @@ function sendLogServices() {
   });
 }
 
+// Jasper stores each tenant in <storageDir>/<origin>, or <storageDir>/default for the default origin
+const tenantPattern = /^(default|@[a-z0-9]+([.-][a-z0-9]+)*)$/;
+function isTenant(name: any): name is string {
+  return typeof name === 'string' && tenantPattern.test(name);
+}
+
+function getTenants(): string[] {
+  try {
+    return fs.readdirSync(data.storageDir, { withFileTypes: true })
+      .filter(d => d.isDirectory() && isTenant(d.name))
+      .map(d => d.name)
+      .sort((a, b) => a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b));
+  } catch (e) {
+    return [];
+  }
+}
+
+function getSftpAccess(): string[] {
+  return Array.isArray(data.sftpAccess) ? [...new Set<string>(data.sftpAccess.filter(isTenant))] : [];
+}
+
+/**
+ * Give the tenant root users (_user and +user) read-only SFTP access to their tenant storage folder.
+ */
+function getStorageAccess() {
+  return getSftpAccess()
+    .flatMap(t => ['_user', '+user'].map(u => t === 'default' ? u : u + t))
+    .join(',');
+}
+
 let key = '';
 function generateKey() {
   return crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
@@ -231,6 +264,7 @@ function getEnv(): { [key: string]: string } {
     JASPER_SSH_VERSION: data.sshVersion ?? '',
     JASPER_SSH_PULL: data.pullSsh ? 'always' : 'missing',
     JASPER_SSH_PORT: data.sshPort ?? '',
+    JASPER_SSH_STORAGE_ACCESS: getStorageAccess(),
     CLOUDFLARE_TOKEN: data.cfToken ?? '',
     NGROK_URL: data.ngrokUrl ?? '',
     NGROK_TOKEN: data.ngrokToken ?? '',
@@ -407,6 +441,7 @@ function createSettingsWindow() {
   if (settings && !settings.isDestroyed()) {
     settings.show();
     data.appVersion = app.getVersion();
+    settings.webContents.send('storage-tenants', getTenants());
     settings.webContents.send('update-settings', data);
     getImageTags().then(data => {
       if (!settings.isDestroyed()) settings.webContents.send('image-tags', data);
@@ -503,6 +538,7 @@ function updateSettings(value: any) {
     ...data,
     ...value,
   };
+  data.sftpAccess = getSftpAccess();
   writeData();
   sendLogServices();
   firstLoad = false;
@@ -568,7 +604,10 @@ let settings: BrowserWindow;
 
 app.on('ready', () => {
   registerKeyHook();
-  ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
+  ipcMain.on('fetch-settings', (_event) => {
+    settings.webContents.send('storage-tenants', getTenants());
+    settings.webContents.send('update-settings', data);
+  });
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
   ipcMain.on('update-version', (_event, name, value) => updateVersion(name, value));
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
