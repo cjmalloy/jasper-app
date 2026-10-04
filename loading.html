@@ -50,10 +50,52 @@
     }
   </style>
   <script>
+    // Hide nginx access log lines ("<service>-N | <ip> - <user> [<time>] "<request>" ...").
+    // Lines with a service prefix are held until complete; other lines (compose status,
+    // pull progress) are shown as soon as they can't be a service log line.
+    const ansi = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b(\[[0-9;?]*)?$/g;
+    const accessLog = /^\s*\S+ - \S+ \[[^\]]*\] "/;
+    let line = '';
+    let lineState = null;
+    function lineVisible(text, complete) {
+      const plain = text.replace(ansi, '').replace(/^\r+/, '');
+      const m = plain.match(/^[A-Za-z0-9][\w.-]*?[-_]\d+\s*\|([\s\S]*)$/);
+      if (m) {
+        if (!complete) return null;
+        return !accessLog.test(m[1]);
+      }
+      if (!complete && plain.length < 100 && /^[\w.-]*\s*$/.test(plain)) return null;
+      return true;
+    }
+    function filter(data) {
+      let out = '';
+      for (const part of data.split(/(\n)/)) {
+        if (part === '\n') {
+          if (lineState === null) lineState = lineVisible(line, true);
+          if (lineState) out += line + '\n';
+          line = '';
+          lineState = null;
+        } else if (part) {
+          if (lineState === null) {
+            line += part;
+            lineState = lineVisible(line, false);
+            if (lineState) {
+              out += line;
+              line = '';
+            }
+          } else if (lineState) {
+            out += part;
+          }
+        }
+      }
+      return out;
+    }
     // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];
     window.electronAPI.streamLogs((event, data) => {
+      data = filter(data);
+      if (!data) return;
       if (term) {
         term.write(data, () => term.scrollToBottom());
       } else {
