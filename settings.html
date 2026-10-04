@@ -123,6 +123,7 @@
       'sshVersion',
     ];
     let saved = {};
+    let tenants = [];
     const flags = [
       'autoUpdate',
       'pullClient',
@@ -149,7 +150,32 @@
       for (const f of versions) {
         checkVersion(f);
       }
+      renderSftpAccess();
     });
+
+    window.electronAPI.handleStorageTenants((event, value) => {
+      tenants = value || [];
+      renderSftpAccess();
+    });
+
+    function renderSftpAccess() {
+      const enabled = saved.sftpAccess || [];
+      const $sftp = $('#sftpAccess');
+      $sftp.empty();
+      // Keep enabled tenants whose folder is missing so they can still be turned off
+      const all = [...new Set([...tenants, ...enabled])];
+      if (!all.length) {
+        $sftp.append($('<span>').text('No tenant folders found in Server Storage'));
+        return;
+      }
+      for (const t of all) {
+        const id = 'sftpAccess_' + all.indexOf(t);
+        $sftp.append($('<span>').append(
+          $('<input type="checkbox" class="sftp-tenant">').attr('id', id).val(t).prop('checked', enabled.includes(t)),
+          $('<label>').attr('for', id).text(t + (tenants.includes(t) ? '' : ' (missing)')),
+        ));
+      }
+    }
 
     window.electronAPI.notifyFinished((event, command) => {
       finished(command);
@@ -177,6 +203,7 @@
       for (const f of flags) {
         settings[f] = $('#' + f).prop('checked');
       }
+      settings.sftpAccess = $('.sftp-tenant:checked').map((i, e) => e.value).get();
       window.electronAPI.saveSettings(settings);
       window.close();
     }
@@ -353,6 +380,9 @@
 
   <label for="sshPort">SSH Port</label>
   <input id="sshPort" type="text">
+
+  <label title="Read-only SFTP access to the tenant storage folder for the _user and +user root users">SFTP Access</label>
+  <div id="sftpAccess" class="cb"></div>
 
   <label for="cfToken">Cloudflare Token</label>
   <input id="cfToken" type="text">

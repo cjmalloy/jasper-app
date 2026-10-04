@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
     handleSettings: (callback) => ipcRenderer.on('update-settings', callback),
     updateImageTags: (callback) => ipcRenderer.on('image-tags', callback),
+    handleStorageTenants: (callback) => ipcRenderer.on('storage-tenants', callback),
     streamLogs: (callback) => ipcRenderer.on('stream-logs', callback),
     handleLogServices: (callback) => ipcRenderer.on('log-services', callback),
     notifyFinished: (callback) => ipcRenderer.on('finished', callback),

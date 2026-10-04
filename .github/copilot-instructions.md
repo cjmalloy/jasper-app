@@ -14,6 +14,7 @@ reports `UP`.
 | `preload.js` | `contextBridge` exposes `window.electronAPI`. Plain JS, not compiled. Renderer→main requests must match an `ipcMain.on`/`handle` in `app.ts`; main→renderer subscriptions must match a `webContents.send` there. |
 | `loading.html`, `logs.html`, `settings.html` | Renderer views. They load `@xterm/*` and `jquery` straight from `node_modules/...`. That's why those packages are runtime `dependencies` and why `asar` is `false`. Don't move them to `devDependencies`. |
 | `docker-compose.yaml` | Services. Every value comes from `JASPER_*` env vars that `writeEnv()` in `app.ts` sets. |
+| `docker-compose.sftp.yaml` | Override added with `-f` only when SFTP access is enabled for a tenant. Mounts storage read-only into `ssh` and grants the `SYS_ADMIN`/AppArmor access jasper-ssh needs to bind mount it. |
 | `build/` | Icon and macOS entitlements for electron-builder. |
 | `package.json` `build` field | electron-builder config. Output goes to `release/` (git-ignored). |
 

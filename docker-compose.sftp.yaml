@@ -1,0 +1,12 @@
+# Only applied when SFTP storage access is enabled for at least one tenant.
+# Bind mounting storage into the SFTP chroot requires mount access.
+services:
+  ssh:
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      STORAGE_ACCESS: "${JASPER_SSH_STORAGE_ACCESS}"
+    volumes:
+      - "${JASPER_STORAGE_DIR:-/var/lib/jasper}:/var/lib/jasper:ro"
