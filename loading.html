@@ -50,11 +50,12 @@
     }
   </style>
   <script>
-    // Hide nginx access log lines ("<service>-N | <ip> - <user> [<time>] "<request>" ...").
+    // Hide nginx errors from failed health checks while the server is starting
+    // ("<service>-N | ... request: "GET /api/v1/user/whoami ..."").
     // Lines with a service prefix are held until complete; other lines (compose status,
     // pull progress) are shown as soon as they can't be a service log line.
     const ansi = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b(\[[0-9;?]*)?$/g;
-    const accessLog = /^\s*\S+ - \S+ \[[^\]]*\] "/;
+    const healthCheck = /request: "\w+ \/api\/v1\/user\/whoami[ ?"]/;
     let line = '';
     let lineState = null;
     function lineVisible(text, complete) {
@@ -62,7 +63,7 @@
       const m = plain.match(/^[A-Za-z0-9][\w.-]*?[-_]\d+\s*\|([\s\S]*)$/);
       if (m) {
         if (!complete) return null;
-        return !accessLog.test(m[1]);
+        return !healthCheck.test(m[1]);
       }
       if (!complete && plain.length < 100 && /^[\w.-]*\s*$/.test(plain)) return null;
       return true;
