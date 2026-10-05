@@ -370,6 +370,14 @@ function createWindow(config: any) {
   return handle;
 }
 
+function isEntryUrl(url: string) {
+  try {
+    return new URL(url).origin === new URL(getEntry()).origin;
+  } catch {
+    return false;
+  }
+}
+
 function createMainWindow(showLoading = false) {
   if (!showLoading && win && !win.isDestroyed()) {
     win.show();
@@ -391,8 +399,9 @@ function createMainWindow(showLoading = false) {
     .then(() => waitFor200(getServerHealthCheck(), 100, { 'X-Jasper-Key': key }))
     .then(() => {
       firstLoad = true;
+      const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
       if (win && !win.isDestroyed()) {
-        win.loadURL(getEntry());
+        win.loadURL(url);
       }
     });
 }
@@ -506,6 +515,7 @@ function updateSettings(value: any) {
   writeData();
   sendLogServices();
   firstLoad = false;
+  resumeUrl = '';
   if (win && !win.isDestroyed()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
     win.webContents.clearHistory();
@@ -535,9 +545,21 @@ function updateVersion(name: string, value: any) {
   data[name] = value;
   writeData();
   const reloadUi = name !== 'sshVersion';
+  let reloaded = false;
+  const reloadFinished = () => {
+    if (!reloadUi || reloaded) return;
+    reloaded = true;
+    if (--pendingUiReloads <= 0) {
+      pendingUiReloads = 0;
+      resumeUrl = '';
+    }
+  };
   if (reloadUi) {
+    pendingUiReloads++;
     firstLoad = false;
     if (win && !win.isDestroyed()) {
+      const current = win.webContents.getURL();
+      if (isEntryUrl(current)) resumeUrl = current;
       win.loadFile(path.join(__dirname, 'loading.html'));
       win.webContents.clearHistory();
       win.show();
@@ -547,11 +569,12 @@ function updateVersion(name: string, value: any) {
   dc('up', '-d', '--no-deps', ...versionServices[name]())
     .once('error', err => {
       console.log(`Failed to update ${name}: ${err}`);
+      reloadFinished();
       finished();
     })
     .once('close', () => {
       if (!reloadUi) return finished();
-      createMainWindow(true).then(finished, finished);
+      createMainWindow(true).finally(reloadFinished).then(finished, finished);
     });
 }
 
@@ -561,6 +584,8 @@ function patchSettings(name: string, value: any) {
 }
 
 let firstLoad = false;
+let resumeUrl = '';
+let pendingUiReloads = 0;
 let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
