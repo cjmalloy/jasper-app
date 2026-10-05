@@ -63,7 +63,7 @@
     }
     select.version {
       width: 20px;
-      text-indent: -9999px; 
+      text-indent: -9999px;
     }
     @keyframes fadein {
       from {
@@ -236,6 +236,7 @@
       <option>latest</option>
       <option>v1</option>
       <option>v1.4</option>
+      <option>v1.3</option>
     </select>
     <button id="serverVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('serverVersion')">Update</button>
     <span id="serverVersion-loading" class="loading">...</span>
@@ -283,6 +284,7 @@
       <option>latest</option>
       <option>v1</option>
       <option>v1.4</option>
+      <option>v1.3</option>
     </select>
     <button id="clientVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('clientVersion')">Update</button>
     <span id="clientVersion-loading" class="loading">...</span>
@@ -301,13 +303,6 @@
     <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
       <option>latest</option>
       <option>18</option>
-      <option>17</option>
-      <option>16</option>
-      <option>15</option>
-      <option>14</option>
-      <option>13</option>
-      <option>12</option>
-      <option>11</option>
     </select>
     <button id="databaseVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('databaseVersion')">Update</button>
     <span id="databaseVersion-loading" class="loading">...</span>
@@ -327,6 +322,8 @@
       <option>latest</option>
       <option>v1</option>
       <option>v1.3</option>
+      <option>v1.2</option>
+      <option>v1.1</option>
     </select>
     <button id="sshVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('sshVersion')">Update</button>
     <span id="sshVersion-loading" class="loading">...</span>
