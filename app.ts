@@ -400,7 +400,6 @@ function createMainWindow(showLoading = false) {
     .then(() => {
       firstLoad = true;
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
-      resumeUrl = '';
       if (win && !win.isDestroyed()) {
         win.loadURL(url);
       }
@@ -546,7 +545,17 @@ function updateVersion(name: string, value: any) {
   data[name] = value;
   writeData();
   const reloadUi = name !== 'sshVersion';
+  let reloaded = false;
+  const reloadFinished = () => {
+    if (!reloadUi || reloaded) return;
+    reloaded = true;
+    if (--pendingUiReloads <= 0) {
+      pendingUiReloads = 0;
+      resumeUrl = '';
+    }
+  };
   if (reloadUi) {
+    pendingUiReloads++;
     firstLoad = false;
     if (win && !win.isDestroyed()) {
       const current = win.webContents.getURL();
@@ -560,11 +569,12 @@ function updateVersion(name: string, value: any) {
   dc('up', '-d', '--no-deps', ...versionServices[name]())
     .once('error', err => {
       console.log(`Failed to update ${name}: ${err}`);
+      reloadFinished();
       finished();
     })
     .once('close', () => {
       if (!reloadUi) return finished();
-      createMainWindow(true).then(finished, finished);
+      createMainWindow(true).finally(reloadFinished).then(finished, finished);
     });
 }
 
@@ -575,6 +585,7 @@ function patchSettings(name: string, value: any) {
 
 let firstLoad = false;
 let resumeUrl = '';
+let pendingUiReloads = 0;
 let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
