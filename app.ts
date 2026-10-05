@@ -125,6 +125,7 @@ function notify(command: string) {
 const maxLogBuffer = 512 * 1024;
 let logBuffer = '';
 const logSubscribers = new WeakSet();
+const logUnsubscribeHooked = new WeakSet();
 const livePtys = new Set<{ resize: (cols: number, rows: number) => void }>();
 type PtySize = { cols: number, rows: number };
 let ptySize: PtySize = { cols: 120, rows: 30 };
@@ -148,7 +149,7 @@ function dc(...command: string[]) {
     process.stdout.write(data);
     logBuffer = (logBuffer + data).slice(-maxLogBuffer);
     // Only send live logs to subscribers; the buffer is replayed on subscribe
-    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents) && !firstLoad) {
+    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents)) {
       win.webContents.send('stream-logs', data);
     }
     if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
@@ -378,7 +379,44 @@ function isEntryUrl(url: string) {
   }
 }
 
-function createMainWindow(showLoading = false) {
+function isLoadingPage() {
+  return !!win && !win.isDestroyed() && win.webContents.getURL().endsWith('/loading.html');
+}
+
+/**
+ * Show the loading screen and start a new loading generation.
+ * Only the most recent generation may replace the loading screen with the UI.
+ */
+function showLoadingScreen() {
+  loadingGen++;
+  if (win && !win.isDestroyed()) {
+    if (!isLoadingPage()) {
+      win.loadFile(path.join(__dirname, 'loading.html'));
+      win.webContents.clearHistory();
+    }
+    win.show();
+  }
+  return loadingGen;
+}
+
+/**
+ * Run docker compose commands one at a time so concurrent progress output
+ * does not interleave in the logs.
+ */
+let composeQueue: Promise<void> = Promise.resolve();
+function queueDc(...command: string[]): Promise<void> {
+  const run = () => new Promise<void>((resolve, reject) => {
+    dc(...command)
+      .once('error', reject)
+      .once('close', () => resolve());
+  });
+  const result = composeQueue.then(run);
+  composeQueue = result.catch(() => {});
+  return result;
+}
+
+function createMainWindow(showLoading = false, gen = loadingGen) {
+  if (showLoading && gen !== loadingGen) return Promise.resolve();
   if (!showLoading && win && !win.isDestroyed()) {
     win.show();
     return Promise.resolve();
@@ -392,14 +430,17 @@ function createMainWindow(showLoading = false) {
       return {action: 'deny'};
     });
   }
-  if (showLoading && !win.webContents.getURL().endsWith('/loading.html')) {
+  if (showLoading && !isLoadingPage()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  return waitFor200(getEntry(), showLoading ? 5000 : pollInterval)
-    .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }))
+  // Stop polling once a newer update or settings change takes over the loading screen
+  const current = () => gen === loadingGen;
+  return waitFor200(getEntry(), showLoading ? 5000 : pollInterval, undefined, current)
+    .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }, current))
     .then(() => {
-      firstLoad = true;
+      if (!current()) return;
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
+      resumeUrl = '';
       if (win && !win.isDestroyed()) {
         win.loadURL(url);
       }
@@ -502,10 +543,11 @@ function wait(ms: number): Promise<void> {
 }
 
 const pollInterval = 1000;
-async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>): Promise<null> {
+async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>, alive = () => true): Promise<null> {
+  if (!alive()) return null;
   return axios.get(url, headers ? { headers, proxy: false } : {})
     .catch(() => ({status: 0}))
-    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers)));
+    .then(res => res.status === 200 || !alive() ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers, alive)));
 }
 
 function updateSettings(value: any) {
@@ -515,20 +557,17 @@ function updateSettings(value: any) {
   };
   writeData();
   sendLogServices();
-  firstLoad = false;
   resumeUrl = '';
   // UI bundles have the same hashed names in every locale, so drop cached copies
   session.defaultSession.clearCache();
-  if (win && !win.isDestroyed()) {
-    win.loadFile(path.join(__dirname, 'loading.html'));
-    win.webContents.clearHistory();
-    win.show();
-  }
-  dc('down').once('close', () => {
-    startServer();
-    createMainWindow(true);
-    win.show();
-  });
+  const gen = showLoadingScreen();
+  queueDc('down')
+    .catch(err => console.log(`Failed to stop server: ${err}`))
+    .then(() => {
+      startServer();
+      createMainWindow(true, gen);
+      if (gen === loadingGen) win.show();
+    });
 }
 
 const versionServices: Record<string, () => string[]> = {
@@ -548,36 +587,23 @@ function updateVersion(name: string, value: any) {
   data[name] = value;
   writeData();
   const reloadUi = name !== 'sshVersion';
-  let reloaded = false;
-  const reloadFinished = () => {
-    if (!reloadUi || reloaded) return;
-    reloaded = true;
-    if (--pendingUiReloads <= 0) {
-      pendingUiReloads = 0;
-      resumeUrl = '';
-    }
-  };
+  let gen = loadingGen;
   if (reloadUi) {
-    pendingUiReloads++;
-    firstLoad = false;
+    // Only the UI page is remembered, so back-to-back updates restore the first url
     if (win && !win.isDestroyed()) {
       const current = win.webContents.getURL();
       if (isEntryUrl(current)) resumeUrl = current;
-      win.loadFile(path.join(__dirname, 'loading.html'));
-      win.webContents.clearHistory();
-      win.show();
-      if (settings && !settings.isDestroyed() && settings.isVisible()) settings.focus();
     }
+    gen = showLoadingScreen();
+    if (settings && !settings.isDestroyed() && settings.isVisible()) settings.focus();
   }
-  dc('up', '-d', '--no-deps', ...versionServices[name]())
-    .once('error', err => {
-      console.log(`Failed to update ${name}: ${err}`);
-      reloadFinished();
-      finished();
-    })
-    .once('close', () => {
+  queueDc('up', '-d', '--no-deps', ...versionServices[name]())
+    .then(() => {
       if (!reloadUi) return finished();
-      createMainWindow(true).finally(reloadFinished).then(finished, finished);
+      createMainWindow(true, gen).then(finished, finished);
+    }, err => {
+      console.log(`Failed to update ${name}: ${err}`);
+      finished();
     });
 }
 
@@ -586,9 +612,8 @@ function patchSettings(name: string, value: any) {
   writeData();
 }
 
-let firstLoad = false;
+let loadingGen = 0;
 let resumeUrl = '';
-let pendingUiReloads = 0;
 let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
@@ -639,8 +664,9 @@ app.on('ready', () => {
   });
   ipcMain.on('fetch-logs', event => {
     const wc = event.sender;
-    if (!logSubscribers.has(wc)) {
-      logSubscribers.add(wc);
+    logSubscribers.add(wc);
+    if (!logUnsubscribeHooked.has(wc)) {
+      logUnsubscribeHooked.add(wc);
       // Unsubscribe on reload; the new page must fetch again
       wc.on('did-start-loading', () => logSubscribers.delete(wc));
     }
