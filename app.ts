@@ -370,6 +370,14 @@ function createWindow(config: any) {
   return handle;
 }
 
+function isEntryUrl(url: string) {
+  try {
+    return new URL(url).origin === new URL(getEntry()).origin;
+  } catch {
+    return false;
+  }
+}
+
 function createMainWindow(showLoading = false) {
   if (!showLoading && win && !win.isDestroyed()) {
     win.show();
@@ -391,8 +399,10 @@ function createMainWindow(showLoading = false) {
     .then(() => waitFor200(getServerHealthCheck(), 100, { 'X-Jasper-Key': key }))
     .then(() => {
       firstLoad = true;
+      const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
+      resumeUrl = '';
       if (win && !win.isDestroyed()) {
-        win.loadURL(getEntry());
+        win.loadURL(url);
       }
     });
 }
@@ -506,6 +516,7 @@ function updateSettings(value: any) {
   writeData();
   sendLogServices();
   firstLoad = false;
+  resumeUrl = '';
   if (win && !win.isDestroyed()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
     win.webContents.clearHistory();
@@ -538,6 +549,8 @@ function updateVersion(name: string, value: any) {
   if (reloadUi) {
     firstLoad = false;
     if (win && !win.isDestroyed()) {
+      const current = win.webContents.getURL();
+      if (isEntryUrl(current)) resumeUrl = current;
       win.loadFile(path.join(__dirname, 'loading.html'));
       win.webContents.clearHistory();
       win.show();
@@ -561,6 +574,7 @@ function patchSettings(name: string, value: any) {
 }
 
 let firstLoad = false;
+let resumeUrl = '';
 let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
