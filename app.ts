@@ -433,12 +433,14 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
   if (showLoading && !isLoadingPage()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  return waitFor200(getEntry(), showLoading ? 5000 : pollInterval)
-    .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }))
+  // Stop polling once a newer update or settings change takes over the loading screen
+  const current = () => gen === loadingGen;
+  return waitFor200(getEntry(), showLoading ? 5000 : pollInterval, undefined, current)
+    .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }, current))
     .then(() => {
-      // A newer update or settings change is pending, let it load the UI
-      if (gen !== loadingGen) return;
+      if (!current()) return;
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
+      resumeUrl = '';
       if (win && !win.isDestroyed()) {
         win.loadURL(url);
       }
@@ -541,10 +543,11 @@ function wait(ms: number): Promise<void> {
 }
 
 const pollInterval = 1000;
-async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>): Promise<null> {
+async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>, alive = () => true): Promise<null> {
+  if (!alive()) return null;
   return axios.get(url, headers ? { headers, proxy: false } : {})
     .catch(() => ({status: 0}))
-    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers)));
+    .then(res => res.status === 200 || !alive() ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers, alive)));
 }
 
 function updateSettings(value: any) {
@@ -584,18 +587,9 @@ function updateVersion(name: string, value: any) {
   data[name] = value;
   writeData();
   const reloadUi = name !== 'sshVersion';
-  let reloaded = false;
-  const reloadFinished = () => {
-    if (!reloadUi || reloaded) return;
-    reloaded = true;
-    if (--pendingUiReloads <= 0) {
-      pendingUiReloads = 0;
-      resumeUrl = '';
-    }
-  };
   let gen = loadingGen;
   if (reloadUi) {
-    pendingUiReloads++;
+    // Only the UI page is remembered, so back-to-back updates restore the first url
     if (win && !win.isDestroyed()) {
       const current = win.webContents.getURL();
       if (isEntryUrl(current)) resumeUrl = current;
@@ -606,10 +600,9 @@ function updateVersion(name: string, value: any) {
   queueDc('up', '-d', '--no-deps', ...versionServices[name]())
     .then(() => {
       if (!reloadUi) return finished();
-      createMainWindow(true, gen).finally(reloadFinished).then(finished, finished);
+      createMainWindow(true, gen).then(finished, finished);
     }, err => {
       console.log(`Failed to update ${name}: ${err}`);
-      reloadFinished();
       finished();
     });
 }
@@ -621,7 +614,6 @@ function patchSettings(name: string, value: any) {
 
 let loadingGen = 0;
 let resumeUrl = '';
-let pendingUiReloads = 0;
 let tray: Tray;
 let win: BrowserWindow;
 let logs: BrowserWindow;
