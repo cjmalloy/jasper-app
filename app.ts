@@ -395,8 +395,8 @@ function createMainWindow(showLoading = false) {
   if (showLoading && !win.webContents.getURL().endsWith('/loading.html')) {
     win.loadFile(path.join(__dirname, 'loading.html'));
   }
-  return waitFor200(getEntry(), showLoading ? 5000 : 100)
-    .then(() => waitFor200(getServerHealthCheck(), 100, { 'X-Jasper-Key': key }))
+  return waitFor200(getEntry(), showLoading ? 5000 : pollInterval)
+    .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }))
     .then(() => {
       firstLoad = true;
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
@@ -501,10 +501,11 @@ function wait(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitFor200(url: string, firstDelay = 100, headers?: Record<string, string>): Promise<null> {
+const pollInterval = 1000;
+async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>): Promise<null> {
   return axios.get(url, headers ? { headers, proxy: false } : {})
     .catch(() => ({status: 0}))
-    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, 100, headers)));
+    .then(res => res.status === 200 ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers)));
 }
 
 function updateSettings(value: any) {
@@ -516,6 +517,8 @@ function updateSettings(value: any) {
   sendLogServices();
   firstLoad = false;
   resumeUrl = '';
+  // UI bundles have the same hashed names in every locale, so drop cached copies
+  session.defaultSession.clearCache();
   if (win && !win.isDestroyed()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
     win.webContents.clearHistory();
