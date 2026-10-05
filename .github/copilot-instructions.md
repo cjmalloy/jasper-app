@@ -99,10 +99,10 @@ docker ps -a  # Confirm this smoke run's Jasper containers have been removed.
   - `app.getPath('userData')` is `~/.config/Electron` (Linux), not `~/.config/Jasper`. Dev
     settings, Postgres data, and storage live there, separate from the installed app.
   - `app.getVersion()` returns the **Electron** version (for example `44.5.1`), not
-    `1.1.25`. The log line `Jasper App Version: 44.5.1` is expected in dev. Version-based logic
+    `1.2.0`. The log line `Jasper App Version: 44.5.1` is expected in dev. Version-based logic
     (auto-update comparison) only behaves correctly when packaged.
 - `settings.json` is only written on shutdown or a settings change. On first launch, the defaults
-  in `app.ts` are used (server/client `v1.3`, Postgres `18`, ssh `v1.1`, ports 8081/8082/8022,
+  in `app.ts` are used (server/client `v1.4`, Postgres `18`, ssh `v1.3`, ports 8081/8082/8022,
   and `pull*: true`, which means `pull_policy: always`, so every start re-pulls images).
 - The compose project name comes from the directory that holds `docker-compose.yaml`:
   `jasper-app` (the repo folder name) in dev, and `app` when packaged (`resources/app`).
