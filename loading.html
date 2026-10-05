@@ -50,19 +50,18 @@
     }
   </style>
   <script>
-    // Hide nginx access log lines ("<service>-N | <ip> - <user> [<time>] "<request>" ...").
-    // Lines with a service prefix are held until complete; other lines (compose status,
+    // Hide lines from the nginx UI services ("client-N | ...", "proxy-N | ...").
+    // Lines are held until their service prefix is known; other lines (compose status,
     // pull progress) are shown as soon as they can't be a service log line.
     const ansi = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b(\[[0-9;?]*)?$/g;
-    const accessLog = /^\s*\S+ - \S+ \[[^\]]*\] "/;
+    const hidden = ['client', 'proxy'];
     let line = '';
     let lineState = null;
     function lineVisible(text, complete) {
       const plain = text.replace(ansi, '').replace(/^\r+/, '');
-      const m = plain.match(/^[A-Za-z0-9][\w.-]*?[-_]\d+\s*\|([\s\S]*)$/);
+      const m = plain.match(/^([A-Za-z0-9][\w.-]*?)[-_]\d+\s*\|/);
       if (m) {
-        if (!complete) return null;
-        return !accessLog.test(m[1]);
+        return !hidden.some(s => m[1] === s || m[1].endsWith('-' + s) || m[1].endsWith('_' + s));
       }
       if (!complete && plain.length < 100 && /^[\w.-]*\s*$/.test(plain)) return null;
       return true;
