@@ -115,6 +115,7 @@
       'file-cache',
       'recycler',
       'preload',
+      'archive',
     ];
     const flags = [
       'autoUpdate',
@@ -126,12 +127,15 @@
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
+      const activeProfiles = (settings.serverProfiles ?? '').replace(/\s+/g, '').split(',');
       if (settings.serverProfiles) {
-        const activeProfiles = settings.serverProfiles.replace(/\s+/g, '').split(',');
         for (const p of profiles) {
           $(`#serverProfiles_${p}`).prop('checked', activeProfiles.includes(p));
         }
       }
+      const archiveSaved = activeProfiles.includes('archive');
+      $('#serverProfiles_archive').prop('disabled', archiveSaved);
+      $('#serverProfiles_archive-lock').css('display', archiveSaved ? '' : 'none');
       for (const f of fields) {
         $('#' + f).val(settings[f] ?? '');
       }
@@ -196,6 +200,17 @@
       $(`#${id}-loading`).css('display', 'none');
     }
 
+    function toggleArchive() {
+      const $archive = $('#serverProfiles_archive');
+      if ($archive.prop('checked') && !confirm(
+        'Enabling the Archive profile turns the database into an append-only log.\n\n' +
+        'Once enabled and saved it cannot be disabled.\n\n' +
+        'Are you sure you want to enable it?')) {
+        $archive.prop('checked', false);
+      }
+      updateProfiles();
+    }
+
     function updateProfiles() {
       const activeProfiles = ['prod', 'storage', 'jwt'];
       for (const p of profiles) {
@@ -251,6 +266,7 @@
     <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler">Recycler</label></span>
     <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload">Preload</label></span>
     <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
+    <span title="Database is an append-only log. Cannot be disabled once enabled."><input type="checkbox" id="serverProfiles_archive" onclick="toggleArchive()"><label for="serverProfiles_archive">Archive</label><span id="serverProfiles_archive-lock" style="display: none">🔒</span></span>
   </div>
 
   <span></span>
