@@ -142,20 +142,68 @@ function resizePtys(size: PtySize | null) {
     }
   }
 }
+function sendLogs(data: string) {
+  process.stdout.write(data);
+  logBuffer = (logBuffer + data).slice(-maxLogBuffer);
+  // Only send live logs to subscribers; the buffer is replayed on subscribe
+  if (win && !win.isDestroyed() && logSubscribers.has(win.webContents)) {
+    win.webContents.send('stream-logs', data);
+  }
+  if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
+    logs.webContents.send('stream-logs', data);
+  }
+}
+
+/**
+ * All compose processes share one terminal. Progress output is redrawn by moving the
+ * cursor up, so output from another process (like the attached `up` log stream) must
+ * not be written in between frames. The newest running process owns the terminal and
+ * the others are buffered until it exits. Ownership only changes at line boundaries.
+ */
+type LogStream = { buf: string, done: boolean };
+const logStreams: LogStream[] = [];
+let lastWriter: LogStream | null = null;
+let midLine = false;
+const ansiEscapes = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07/g;
+function emitLogs(stream: LogStream, chunk: string) {
+  stream.buf = stream.buf.slice(chunk.length);
+  lastWriter = stream;
+  const plain = chunk.replace(ansiEscapes, '');
+  if (plain) midLine = !plain.endsWith('\n');
+  sendLogs(chunk);
+}
+function pumpLogs() {
+  while (true) {
+    for (let i = logStreams.length - 1; i >= 0; i--) {
+      if (logStreams[i].done && !logStreams[i].buf) logStreams.splice(i, 1);
+    }
+    if (midLine && lastWriter) {
+      // Let the previous writer finish its line first
+      const buf = lastWriter.buf;
+      if (buf) {
+        const i = buf.indexOf('\n');
+        emitLogs(lastWriter, i < 0 ? buf : buf.slice(0, i + 1));
+        continue;
+      }
+      if (!lastWriter.done) return;
+      midLine = false;
+    }
+    const owner = logStreams[logStreams.length - 1];
+    if (!owner?.buf) return;
+    emitLogs(owner, owner.buf);
+  }
+}
+function writeLogs(stream: LogStream, data: string) {
+  // Late output after exit is flushed right away
+  if (!logStreams.includes(stream)) logStreams.push(stream);
+  stream.buf = (stream.buf + data).slice(-maxLogBuffer);
+  pumpLogs();
+}
+
 function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
-  const sendLogs = (data: string) => {
-    process.stdout.write(data);
-    logBuffer = (logBuffer + data).slice(-maxLogBuffer);
-    // Only send live logs to subscribers; the buffer is replayed on subscribe
-    if (win && !win.isDestroyed() && logSubscribers.has(win.webContents)) {
-      win.webContents.send('stream-logs', data);
-    }
-    if (logs && !logs.isDestroyed() && logSubscribers.has(logs.webContents)) {
-      logs.webContents.send('stream-logs', data);
-    }
-  };
+  const stream: LogStream = { buf: '', done: false };
   try {
     const pty = ptySpawn('docker', [
       'compose',
@@ -170,9 +218,12 @@ function dc(...command: string[]) {
       env: getEnv(),
     });
     livePtys.add(pty);
-    pty.onData(sendLogs);
+    logStreams.push(stream);
+    pty.onData(data => writeLogs(stream, data));
     pty.onExit(({ exitCode, signal }) => {
       livePtys.delete(pty);
+      stream.done = true;
+      pumpLogs();
       emitter.emit('exit', exitCode, signal ?? null);
       emitter.emit('close', exitCode, signal ?? null);
     });
