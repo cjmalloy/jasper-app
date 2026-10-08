@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+  <title>Jasper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 12px;
+    }
+    #message {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+    }
+    #value {
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+<form id="form">
+  <div id="message"></div>
+  <input id="value" type="text" autocomplete="off">
+  <div class="buttons">
+    <button type="button" id="cancel">Cancel</button>
+    <button type="submit">OK</button>
+  </div>
+</form>
+<script>
+  const input = document.getElementById('value');
+  window.electronAPI.handlePrompt((event, message, defaultValue) => {
+    document.getElementById('message').textContent = message;
+    input.value = defaultValue;
+    input.focus();
+    input.select();
+  });
+  document.getElementById('form').addEventListener('submit', event => {
+    event.preventDefault();
+    window.electronAPI.promptResult(input.value);
+  });
+  document.getElementById('cancel').addEventListener('click', () => window.electronAPI.promptResult(null));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') window.electronAPI.promptResult(null);
+  });
+</script>
+</body>
+</html>

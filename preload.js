@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     streamLogs: (callback) => ipcRenderer.on('stream-logs', callback),
     handleLogServices: (callback) => ipcRenderer.on('log-services', callback),
     notifyFinished: (callback) => ipcRenderer.on('finished', callback),
+    handlePrompt: (callback) => ipcRenderer.on('prompt-init', callback),
 
   fetchLogs: () => ipcRenderer.send('fetch-logs'),
   resizePty: (size) => ipcRenderer.send('resize-pty', size),
@@ -17,4 +18,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveAs: (buffer, defaultFilename) => ipcRenderer.invoke('save-as', buffer, defaultFilename),
   command: (id, args) => ipcRenderer.send('command', id, args),
   updateVersion: (name, value) => ipcRenderer.send('update-version', name, value),
+  prompt: (message, defaultValue) => ipcRenderer.sendSync('prompt', message, defaultValue),
+  promptResult: (value) => ipcRenderer.send('prompt-result', value),
+});
+
+// Electron does not implement window.prompt(), so replace it with a native modal
+contextBridge.executeInMainWorld({
+  func: () => {
+    const electronPrompt = window.electronAPI.prompt;
+    window.prompt = (message, defaultValue) => electronPrompt(
+      message === undefined ? '' : String(message),
+      defaultValue === undefined ? '' : String(defaultValue));
+  },
 });

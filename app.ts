@@ -371,6 +371,53 @@ function createWindow(config: any) {
   return handle;
 }
 
+/**
+ * Electron does not implement window.prompt(), so show a modal window instead.
+ * The renderer is blocked on a sync IPC call until a value (or null) is returned.
+ */
+function showPrompt(event: Electron.IpcMainEvent, message: any, defaultValue: any) {
+  const parent = BrowserWindow.fromWebContents(event.sender);
+  const handle = new BrowserWindow({
+    parent: parent || undefined,
+    modal: !!parent,
+    width: 420,
+    height: 200,
+    useContentSize: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    icon: path.join(__dirname, 'app.png'),
+    autoHideMenuBar: true,
+    show: false,
+    title: parent?.getTitle() || 'Jasper',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+  let answered = false;
+  const answer = (value: string | null) => {
+    if (answered) return;
+    answered = true;
+    ipcMain.removeListener('prompt-result', onResult);
+    if (!event.sender.isDestroyed()) event.returnValue = value;
+    if (!handle.isDestroyed()) handle.destroy();
+  };
+  const onResult = (e: Electron.IpcMainEvent, value: any) => {
+    if (handle.isDestroyed() || e.sender !== handle.webContents) return;
+    answer(typeof value === 'string' ? value : null);
+  };
+  ipcMain.on('prompt-result', onResult);
+  handle.on('closed', () => answer(null));
+  handle.webContents.on('will-navigate', e => e.preventDefault());
+  handle.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  handle.webContents.once('did-finish-load', () => {
+    handle.webContents.send('prompt-init', String(message ?? ''), String(defaultValue ?? ''));
+    handle.show();
+  });
+  handle.loadFile(path.join(__dirname, 'prompt.html'));
+}
+
 function isEntryUrl(url: string) {
   try {
     return new URL(url).origin === new URL(getEntry()).origin;
@@ -627,6 +674,7 @@ app.on('ready', () => {
   ipcMain.on('settings-patch', (_event, patch) => patchSettings(patch.name, patch.value));
   ipcMain.on('command', (_event, value) => notify(value));
   ipcMain.on('open-dir', (_event, value) => shell.openPath(value));
+  ipcMain.on('prompt', (event, message, defaultValue) => showPrompt(event, message, defaultValue));
   ipcMain.handle('save-as', async (event, buffer: ArrayBuffer, defaultFilename: string) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents ||
         event.senderFrame !== win.webContents.mainFrame ||
