@@ -160,16 +160,20 @@ function sendLogs(data: string) {
  * not be written in between frames. The newest running process owns the terminal and
  * the others are buffered until it exits. Ownership only changes at line boundaries.
  */
-type LogStream = { buf: string, done: boolean };
+type LogStream = { buf: string, esc: string, done: boolean };
 const logStreams: LogStream[] = [];
 let lastWriter: LogStream | null = null;
 let midLine = false;
 const ansiEscapes = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07/g;
+const partialEscape = /\x1b(?:\[[0-9;?]*|\][^\x07]*)?$/;
 function emitLogs(stream: LogStream, chunk: string) {
   stream.buf = stream.buf.slice(chunk.length);
   lastWriter = stream;
-  const plain = chunk.replace(ansiEscapes, '');
-  if (plain) midLine = !plain.endsWith('\n');
+  // Escape sequences may be split across chunks, so carry the incomplete tail over
+  const plain = (stream.esc + chunk).replace(ansiEscapes, '');
+  stream.esc = plain.match(partialEscape)?.[0] ?? '';
+  const visible = plain.slice(0, plain.length - stream.esc.length);
+  if (visible) midLine = !visible.endsWith('\n');
   sendLogs(chunk);
 }
 function pumpLogs() {
@@ -177,8 +181,8 @@ function pumpLogs() {
     for (let i = logStreams.length - 1; i >= 0; i--) {
       if (logStreams[i].done && !logStreams[i].buf) logStreams.splice(i, 1);
     }
-    if (midLine && lastWriter) {
-      // Let the previous writer finish its line first
+    if ((midLine || lastWriter?.esc) && lastWriter) {
+      // Let the previous writer finish its line or escape sequence first
       const buf = lastWriter.buf;
       if (buf) {
         const i = buf.indexOf('\n');
@@ -187,6 +191,7 @@ function pumpLogs() {
       }
       if (!lastWriter.done) return;
       midLine = false;
+      lastWriter.esc = '';
     }
     const owner = logStreams[logStreams.length - 1];
     if (!owner?.buf) return;
@@ -203,7 +208,7 @@ function writeLogs(stream: LogStream, data: string) {
 function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
-  const stream: LogStream = { buf: '', done: false };
+  const stream: LogStream = { buf: '', esc: '', done: false };
   try {
     const pty = ptySpawn('docker', [
       'compose',
