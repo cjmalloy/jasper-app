@@ -27,6 +27,10 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Only one instance may run docker compose; exit before 'before-quit' can run `docker compose down`
+const singleInstance = app.requestSingleInstanceLock();
+if (!singleInstance) app.exit(0);
+
 if (process.platform !== 'win32') {
   process.env.PATH = process.env.PATH + ':/usr/local/bin';
 }
@@ -681,7 +685,15 @@ let win: BrowserWindow;
 let logs: BrowserWindow;
 let settings: BrowserWindow;
 
+app.on('second-instance', () => {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
+
 app.on('ready', () => {
+  if (!singleInstance) return;
   registerKeyHook();
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
@@ -763,6 +775,7 @@ app.on('ready', () => {
 });
 
 app.on('activate', () => {
+  if (!singleInstance) return;
   createMainWindow();
 });
 
