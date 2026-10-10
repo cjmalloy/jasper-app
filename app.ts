@@ -160,8 +160,9 @@ function sendLogs(data: string) {
  * not be written in between frames. The newest running process owns the terminal and
  * the others are buffered until it exits. Ownership only changes at line boundaries.
  */
-type LogStream = { buf: string, esc: string, done: boolean };
+type LogStream = { id: number, buf: string, esc: string, done: boolean };
 const logStreams: LogStream[] = [];
+let logStreamId = 0;
 let lastWriter: LogStream | null = null;
 let midLine = false;
 const ansiEscapes = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07/g;
@@ -190,6 +191,8 @@ function pumpLogs() {
         continue;
       }
       if (!lastWriter.done) return;
+      // Cancel the unfinished escape (CAN) and end the line before switching streams
+      sendLogs((lastWriter.esc ? '\x18' : '') + (midLine ? '\r\n' : ''));
       midLine = false;
       lastWriter.esc = '';
     }
@@ -199,8 +202,11 @@ function pumpLogs() {
   }
 }
 function writeLogs(stream: LogStream, data: string) {
-  // Late output after exit is flushed right away
-  if (!logStreams.includes(stream)) logStreams.push(stream);
+  // Late output after exit is reinserted in creation order, behind any newer stream
+  if (!logStreams.includes(stream)) {
+    const i = logStreams.findIndex(s => s.id > stream.id);
+    logStreams.splice(i < 0 ? logStreams.length : i, 0, stream);
+  }
   stream.buf = (stream.buf + data).slice(-maxLogBuffer);
   pumpLogs();
 }
@@ -208,7 +214,7 @@ function writeLogs(stream: LogStream, data: string) {
 function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter();
-  const stream: LogStream = { buf: '', esc: '', done: false };
+  const stream: LogStream = { id: logStreamId++, buf: '', esc: '', done: false };
   try {
     const pty = ptySpawn('docker', [
       'compose',
