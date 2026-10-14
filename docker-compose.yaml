@@ -50,6 +50,8 @@ services:
     ports:
       - "127.0.0.1:${JASPER_CLIENT_PORT:-8082}:80"
     environment:
+      # Absolute so embeds written into blob: iframes (like PDFs) can resolve API URLs
+      JASPER_API: "http://localhost:${JASPER_CLIENT_PORT:-8082}"
       JASPER_API_PROXY: "http://web:80"
       JASPER_TITLE: "${JASPER_CLIENT_TITLE}"
       JASPER_LOCALE: "${JASPER_LOCALE}"
