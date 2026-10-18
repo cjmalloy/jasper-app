@@ -148,12 +148,22 @@
       finished(command);
     });
 
+    // Newest first, with less specific tags before more specific ones (v1.4, v1.4.1, v1.4.0, v1.3, ...)
+    function compareVersions(a, b) {
+      const pa = a.replace(/^v/, '').split('.');
+      const pb = b.replace(/^v/, '').split('.');
+      for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+        if (pa[i] !== pb[i]) return pb[i].localeCompare(pa[i], undefined, { numeric: true });
+      }
+      return pa.length - pb.length;
+    }
+
     window.electronAPI.updateImageTags((event, imageTags) => {
       for (const [key, value] of Object.entries(imageTags)) {
         if (!value || !value.length) continue;
         const $select = $(`#${key}`);
         $select.html('');
-        value.reverse();
+        value.sort(compareVersions);
         $select.append($(`<option>latest</option>`));
         for (const tag of value) {
           $select.append($(`<option>${tag}</option>`));
