@@ -450,6 +450,18 @@ function isLoadingPage() {
 }
 
 /**
+ * Clear the main window's back/forward history once a load commits,
+ * so Back can never return to (or from) the loading screen.
+ */
+function loadAndClearHistory(load: Promise<void>) {
+  load
+    .then(() => {
+      if (win && !win.isDestroyed()) win.webContents.navigationHistory.clear();
+    })
+    .catch(() => {});
+}
+
+/**
  * Show the loading screen and start a new loading generation.
  * Only the most recent generation may replace the loading screen with the UI.
  */
@@ -457,8 +469,7 @@ function showLoadingScreen() {
   loadingGen++;
   if (win && !win.isDestroyed()) {
     if (!isLoadingPage()) {
-      win.loadFile(path.join(__dirname, 'loading.html'));
-      win.webContents.clearHistory();
+      loadAndClearHistory(win.loadFile(path.join(__dirname, 'loading.html')));
     }
     win.show();
   }
@@ -497,7 +508,7 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
     });
   }
   if (showLoading && !isLoadingPage()) {
-    win.loadFile(path.join(__dirname, 'loading.html'));
+    loadAndClearHistory(win.loadFile(path.join(__dirname, 'loading.html')));
   }
   // Stop polling once a newer update or settings change takes over the loading screen
   const current = () => gen === loadingGen;
@@ -508,7 +519,7 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
       resumeUrl = '';
       if (win && !win.isDestroyed()) {
-        win.loadURL(url);
+        loadAndClearHistory(win.loadURL(url));
       }
     });
 }
