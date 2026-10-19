@@ -536,7 +536,14 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
       resumeUrl = '';
       if (win && !win.isDestroyed()) {
-        win.loadURL(url).then(removeLoadingHistory, () => {});
+        // Prune history as soon as the UI commits, before the user can press Back
+        const contents = win.webContents;
+        const onNavigate = () => {
+          contents.off('did-navigate', onNavigate);
+          removeLoadingHistory();
+        };
+        contents.on('did-navigate', onNavigate);
+        win.loadURL(url).catch(() => contents.off('did-navigate', onNavigate));
       }
     });
 }
