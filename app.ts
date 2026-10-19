@@ -445,20 +445,33 @@ function isEntryUrl(url: string) {
   }
 }
 
+function isLoadingUrl(url: string) {
+  return url.endsWith('/loading.html');
+}
+
 function isLoadingPage() {
-  return !!win && !win.isDestroyed() && win.webContents.getURL().endsWith('/loading.html');
+  return !!win && !win.isDestroyed() && isLoadingUrl(win.webContents.getURL());
 }
 
 /**
- * Clear the main window's back/forward history once a load commits,
- * so Back can never return to (or from) the loading screen.
+ * Once the UI has loaded, drop loading screen entries from the back/forward history
+ * so Back skips them, while earlier UI pages stay reachable.
  */
-function loadAndClearHistory(load: Promise<void>) {
-  load
-    .then(() => {
-      if (win && !win.isDestroyed()) win.webContents.navigationHistory.clear();
-    })
-    .catch(() => {});
+function removeLoadingHistory() {
+  if (!win || win.isDestroyed() || isLoadingPage()) return;
+  const history = win.webContents.navigationHistory;
+  const entries = history.getAllEntries();
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (i !== history.getActiveIndex() && isLoadingUrl(entries[i].url)) {
+      history.removeEntryAtIndex(i);
+    }
+  }
+  // Resuming the same page after an update would otherwise leave a duplicate entry
+  const active = history.getActiveIndex();
+  const all = history.getAllEntries();
+  if (active > 0 && all[active - 1].url === all[active].url) {
+    history.removeEntryAtIndex(active - 1);
+  }
 }
 
 /**
@@ -469,7 +482,7 @@ function showLoadingScreen() {
   loadingGen++;
   if (win && !win.isDestroyed()) {
     if (!isLoadingPage()) {
-      loadAndClearHistory(win.loadFile(path.join(__dirname, 'loading.html')));
+      win.loadFile(path.join(__dirname, 'loading.html'));
     }
     win.show();
   }
@@ -506,9 +519,13 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       shell.openExternal(url);
       return {action: 'deny'};
     });
+    // Nothing on the loading screen should navigate away; the UI is loaded from here when ready
+    win.webContents.on('will-frame-navigate', event => {
+      if (isLoadingPage()) event.preventDefault();
+    });
   }
   if (showLoading && !isLoadingPage()) {
-    loadAndClearHistory(win.loadFile(path.join(__dirname, 'loading.html')));
+    win.loadFile(path.join(__dirname, 'loading.html'));
   }
   // Stop polling once a newer update or settings change takes over the loading screen
   const current = () => gen === loadingGen;
@@ -519,7 +536,7 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
       resumeUrl = '';
       if (win && !win.isDestroyed()) {
-        loadAndClearHistory(win.loadURL(url));
+        win.loadURL(url).then(removeLoadingHistory, () => {});
       }
     });
 }

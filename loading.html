@@ -50,6 +50,10 @@
     }
   </style>
   <script>
+    // Mouse back/forward buttons navigate on mouseup unless cancelled
+    window.addEventListener('mouseup', e => {
+      if (e.button === 3 || e.button === 4) e.preventDefault();
+    }, true);
     // Hide nginx errors from failed health checks while the server is starting
     // ("<service>-N | ... request: "GET /api/v1/user/whoami ..."").
     // Lines with a service prefix are held until complete; other lines (compose status,
