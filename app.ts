@@ -575,6 +575,10 @@ function createSettingsWindow() {
   });
 }
 
+function isVersionTag(tag: string) {
+  return /^v\d/.test(tag);
+}
+
 let _imageTags: ImageTags | null = null;
 async function getImageTags(): Promise<ImageTags> {
   if (_imageTags) return _imageTags;
@@ -585,11 +589,11 @@ async function getImageTags(): Promise<ImageTags> {
     ssh: [],
   };
   return ghDockerTags('cjmalloy/jasper')
-    .then(tags => versions.server = tags.filter((t: string) => t.startsWith('v')))
+    .then(tags => versions.server = tags.filter(isVersionTag))
     .then(() => ghDockerTags('cjmalloy/jasper-ui'))
-    .then(tags => versions.client = tags.filter((t: string) => t.startsWith('v')))
+    .then(tags => versions.client = tags.filter(isVersionTag))
     .then(() => ghDockerTags('cjmalloy/jasper-ssh'))
-    .then(tags => versions.ssh = tags.filter((t: string) => t.startsWith('v')))
+    .then(tags => versions.ssh = tags.filter(isVersionTag))
     .then(() => _imageTags = versions);
 }
 
