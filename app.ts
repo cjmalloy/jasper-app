@@ -445,8 +445,33 @@ function isEntryUrl(url: string) {
   }
 }
 
+function isLoadingUrl(url: string) {
+  return url.endsWith('/loading.html');
+}
+
 function isLoadingPage() {
-  return !!win && !win.isDestroyed() && win.webContents.getURL().endsWith('/loading.html');
+  return !!win && !win.isDestroyed() && isLoadingUrl(win.webContents.getURL());
+}
+
+/**
+ * Once the UI has loaded, drop loading screen entries from the back/forward history
+ * so Back skips them, while earlier UI pages stay reachable.
+ */
+function removeLoadingHistory() {
+  if (!win || win.isDestroyed() || isLoadingPage()) return;
+  const history = win.webContents.navigationHistory;
+  const entries = history.getAllEntries();
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (i !== history.getActiveIndex() && isLoadingUrl(entries[i].url)) {
+      history.removeEntryAtIndex(i);
+    }
+  }
+  // Resuming the same page after an update would otherwise leave a duplicate entry
+  const active = history.getActiveIndex();
+  const all = history.getAllEntries();
+  if (active > 0 && all[active - 1].url === all[active].url) {
+    history.removeEntryAtIndex(active - 1);
+  }
 }
 
 /**
@@ -458,7 +483,6 @@ function showLoadingScreen() {
   if (win && !win.isDestroyed()) {
     if (!isLoadingPage()) {
       win.loadFile(path.join(__dirname, 'loading.html'));
-      win.webContents.clearHistory();
     }
     win.show();
   }
@@ -495,6 +519,10 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       shell.openExternal(url);
       return {action: 'deny'};
     });
+    // Nothing on the loading screen should navigate away; the UI is loaded from here when ready
+    win.webContents.on('will-frame-navigate', event => {
+      if (isLoadingPage()) event.preventDefault();
+    });
   }
   if (showLoading && !isLoadingPage()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
@@ -508,7 +536,14 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
       const url = resumeUrl && isEntryUrl(resumeUrl) ? resumeUrl : getEntry();
       resumeUrl = '';
       if (win && !win.isDestroyed()) {
-        win.loadURL(url);
+        // Prune history as soon as the UI commits, before the user can press Back
+        const contents = win.webContents;
+        const onNavigate = () => {
+          contents.off('did-navigate', onNavigate);
+          removeLoadingHistory();
+        };
+        contents.on('did-navigate', onNavigate);
+        win.loadURL(url).catch(() => contents.off('did-navigate', onNavigate));
       }
     });
 }
