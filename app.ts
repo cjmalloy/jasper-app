@@ -427,6 +427,13 @@ function createWindow(config: any) {
     if (handle.isDestroyed()) return;
     config.maximized = false;
   });
+  handle.on('leave-full-screen', () => {
+    if (handle.isDestroyed()) return;
+    // Leaving window fullscreen with the Toggle Full Screen hotkey does not exit
+    // element fullscreen, which breaks later requestFullscreen calls
+    handle.webContents.executeJavaScript('document.fullscreenElement && document.exitFullscreen().catch(() => {})')
+      .catch(() => {});
+  });
   handle.on('close', event => {
     if (!forceQuitting) {
       event.preventDefault()
