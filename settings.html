@@ -164,9 +164,9 @@
         const $select = $(`#${key}`);
         $select.html('');
         value.sort(compareVersions);
-        $select.append($(`<option>latest</option>`));
+        $select.append($('<option>').text('latest'));
         for (const tag of value) {
-          $select.append($(`<option>${tag}</option>`));
+          $select.append($('<option>').text(tag));
         }
         $select.val($(`#${key}Version`).val());
       }
@@ -192,7 +192,7 @@
     }
 
     function patch(f) {
-      window.electronAPI.patchSettings({name: f, value: $('#' + f).checked});
+      window.electronAPI.patchSettings({name: f, value: $('#' + f).prop('checked')});
     }
 
     function openDir(dir) {
