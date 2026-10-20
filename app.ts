@@ -1,4 +1,3 @@
-import axios, { AxiosHeaders } from 'axios';
 import * as crypto from 'crypto';
 import {
   app,
@@ -598,29 +597,35 @@ async function getImageTags(): Promise<ImageTags> {
 }
 
 function ghDockerTags(repo: string): Promise<string[]> {
-  return axios.get(`https://ghcr.io/token?scope=repository:${repo}:pull`, {})
+  return getJson(`https://ghcr.io/token?scope=repository:${repo}:pull`)
     .catch(err => {
       console.log('Can\'t get fake login token: ' + repo);
       throw err
     })
-    .then(res => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, res.data.token));
+    .then(({ body }) => dockerTags('https://ghcr.io', `/v2/${repo}/tags/list`, body.token));
 }
 
 function dockerTags(host: string, path: string, token: string, tags: string[] = [], page = 0): Promise<string[]> {
-  return axios.get(host + path, {headers: {'Authorization': 'Bearer ' + token}})
+  return getJson(host + path, {'Authorization': 'Bearer ' + token})
     .catch(err => {
       console.log('Can\'t get tag list ' + path);
       throw err
     })
-    .then(res => {
-      tags.push(...res.data.tags)
-      const next = (res.headers as AxiosHeaders).get('link', /<([^>]+)>; rel="next"/);
+    .then(({ body, headers }) => {
+      tags.push(...body.tags)
+      const next = /<([^>]+)>; rel="next"/.exec(headers.get('link') ?? '');
       if (next?.length) {
         return dockerTags(host, next[1], token, tags, page++);
       } else {
         return tags;
       }
     });
+}
+
+async function getJson(url: string, headers?: Record<string, string>): Promise<{ body: any, headers: Headers }> {
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`Request failed with status code ${res.status}`);
+  return { body: await res.json(), headers: res.headers };
 }
 
 function createLogsWindow() {
@@ -650,7 +655,7 @@ function wait(ms: number): Promise<void> {
 const pollInterval = 1000;
 async function waitFor200(url: string, firstDelay = pollInterval, headers?: Record<string, string>, alive = () => true): Promise<null> {
   if (!alive()) return null;
-  return axios.get(url, headers ? { headers, proxy: false } : {})
+  return fetch(url, { headers })
     .catch(() => ({status: 0}))
     .then(res => res.status === 200 || !alive() ? null : wait(firstDelay).then(() => waitFor200(url, pollInterval, headers, alive)));
 }
