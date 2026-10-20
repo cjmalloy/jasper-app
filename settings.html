@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Jasper Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="node_modules/jquery/dist/jquery.min.js"></script>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -125,24 +126,21 @@
       'showLogsOnStart',
     ];
 
-    const el = id => document.getElementById(id);
-
     window.electronAPI.handleSettings((event, settings) => {
       const activeProfiles = (settings.serverProfiles ?? '').replace(/\s+/g, '').split(',');
       if (settings.serverProfiles) {
         for (const p of profiles) {
-          const cb = el(`serverProfiles_${p}`);
-          if (cb) cb.checked = activeProfiles.includes(p);
+          $(`#serverProfiles_${p}`).prop('checked', activeProfiles.includes(p));
         }
       }
       const archiveSaved = activeProfiles.includes('archive');
-      el('serverProfiles_archive').disabled = archiveSaved;
-      el('serverProfiles_archive-lock').style.display = archiveSaved ? '' : 'none';
+      $('#serverProfiles_archive').prop('disabled', archiveSaved);
+      $('#serverProfiles_archive-lock').css('display', archiveSaved ? '' : 'none');
       for (const f of fields) {
-        el(f).value = settings[f] ?? '';
+        $('#' + f).val(settings[f] ?? '');
       }
       for (const f of flags) {
-        el(f).checked = settings[f] ?? false;
+        $('#' + f).prop('checked', settings[f] ?? false);
       }
     });
 
@@ -163,34 +161,38 @@
     window.electronAPI.updateImageTags((event, imageTags) => {
       for (const [key, value] of Object.entries(imageTags)) {
         if (!value || !value.length) continue;
-        const select = el(key);
+        const $select = $(`#${key}`);
+        $select.html('');
         value.sort(compareVersions);
-        select.replaceChildren(new Option('latest'), ...value.map(tag => new Option(tag)));
-        select.value = el(`${key}Version`).value;
+        $select.append($('<option>').text('latest'));
+        for (const tag of value) {
+          $select.append($('<option>').text(tag));
+        }
+        $select.val($(`#${key}Version`).val());
       }
     });
 
     function save() {
       const settings = {};
       for (const f of fields) {
-        settings[f] = el(f).value;
+        settings[f] = $('#' + f).val();
       }
       for (const f of flags) {
-        settings[f] = el(f).checked;
+        settings[f] = $('#' + f).prop('checked');
       }
       window.electronAPI.saveSettings(settings);
       window.close();
     }
 
     function updateVersion(f) {
-      const value = el(f).value;
+      const value = $('#' + f).val();
       window.electronAPI.updateVersion(f, value);
-      el(`${f}-button`).style.display = 'none';
-      el(`${f}-loading`).style.display = 'block';
+      $(`#${f}-button`).css('display', 'none');
+      $(`#${f}-loading`).css('display', 'block');
     }
 
     function patch(f) {
-      window.electronAPI.patchSettings({name: f, value: el(f).checked});
+      window.electronAPI.patchSettings({name: f, value: $('#' + f).prop('checked')});
     }
 
     function openDir(dir) {
@@ -199,22 +201,22 @@
 
     function sendCommand(id, ...args) {
       window.electronAPI.command(id, args);
-      el(`${id}-button`).style.display = 'none';
-      el(`${id}-loading`).style.display = 'block';
+      $(`#${id}-button`).css('display', 'none');
+      $(`#${id}-loading`).css('display', 'block');
     }
 
     function finished(id) {
-      el(`${id}-button`).style.display = 'block';
-      el(`${id}-loading`).style.display = 'none';
+      $(`#${id}-button`).css('display', 'block');
+      $(`#${id}-loading`).css('display', 'none');
     }
 
     function toggleArchive() {
-      const archive = el('serverProfiles_archive');
-      if (archive.checked && !confirm(
+      const $archive = $('#serverProfiles_archive');
+      if ($archive.prop('checked') && !confirm(
         'Enabling the Archive profile turns the database into an append-only log.\n\n' +
         'Once enabled and saved it cannot be disabled.\n\n' +
         'Are you sure you want to enable it?')) {
-        archive.checked = false;
+        $archive.prop('checked', false);
       }
       updateProfiles();
     }
@@ -222,16 +224,15 @@
     function updateProfiles() {
       const activeProfiles = ['prod', 'storage', 'jwt'];
       for (const p of profiles) {
-        if (el(`serverProfiles_${p}`)?.checked) activeProfiles.push(p)
+        if ($(`#serverProfiles_${p}`).prop('checked')) activeProfiles.push(p)
       }
-      el('serverProfiles').value = activeProfiles.join(',');
+      $('#serverProfiles').val(activeProfiles.join(','));
     }
     window.onload = () => {
       window.electronAPI.fetchSettings();
-      for (const input of document.querySelectorAll('input')) {
-        input.addEventListener('focus', () => input.style.zIndex = 1);
-        input.addEventListener('blur', () => input.style.zIndex = '');
-      }
+      $('input')
+        .focus(e => $(e.currentTarget).css('z-index', 1))
+        .blur(e => $(e.currentTarget).css('z-index', ''));
     };
   </script>
 </head>
@@ -256,7 +257,7 @@
   <label for="serverVersion">Server Version</label>
   <div class="form-array">
     <input id="serverVersion" type="text">
-    <select id="server" class="version" onchange="el('serverVersion').value = el('server').value">
+    <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val())">
       <option>latest</option>
       <option>v1</option>
       <option>v1.4</option>
@@ -299,13 +300,13 @@
   <label for="storageDir">Server Storage</label>
   <div class="form-array">
     <input id="storageDir" type="text">
-    <button type="button" onclick="openDir(el('storageDir').value)">📂️</button>
+    <button type="button" onclick="openDir($('#storageDir').val())">📂️</button>
   </div>
 
   <label for="clientVersion">UI Version</label>
   <div class="form-array">
     <input id="clientVersion" type="text">
-    <select id="client" class="version" onchange="el('clientVersion').value = el('client').value">
+    <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val())">
       <option>latest</option>
       <option>v1</option>
       <option>v1.4</option>
@@ -325,7 +326,7 @@
   <label for="databaseVersion">Postgres Version</label>
   <div class="form-array">
     <input id="databaseVersion" type="text">
-    <select id="database" class="version" onchange="el('databaseVersion').value = el('database').value">
+    <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
       <option>latest</option>
       <option>18</option>
     </select>
@@ -337,13 +338,13 @@
   <label for="dataDir">Postgres Directory</label>
   <div class="form-array">
     <input id="dataDir" type="text">
-    <button type="button" onclick="openDir(el('dataDir').value)">📂️</button>
+    <button type="button" onclick="openDir($('#dataDir').val())">📂️</button>
   </div>
 
   <label for="sshVersion">SSH Version</label>
   <div class="form-array">
     <input id="sshVersion" type="text">
-    <select id="ssh" class="version" onchange="el('sshVersion').value = el('ssh').value">
+    <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val())">
       <option>latest</option>
       <option>v1</option>
       <option>v1.3</option>
