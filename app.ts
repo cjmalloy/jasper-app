@@ -334,14 +334,24 @@ function startServer() {
     });
 }
 
+let shuttingDown = false;
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Invalidate pending loading screens and stop waiting for the loading screen size
+  loadingGen++;
+  loadingSized();
   writeData();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
     { label: 'Force Quit', click: forceQuit },
   ]));
-  dc('down')
-    .once('close', forceQuit);
+  // Wait for any running compose command so it can't start containers after down
+  composeQueue.then(() => {
+    dc('down')
+      .once('error', forceQuit)
+      .once('close', forceQuit);
+  });
   if (win) win.destroy();
   if (logs) logs.destroy();
   if (settings) settings.destroy();
@@ -511,6 +521,7 @@ function showLoadingScreen() {
 let composeQueue: Promise<void> = Promise.resolve();
 function queueDc(...command: string[]): Promise<void> {
   const run = () => new Promise<void>((resolve, reject) => {
+    if (shuttingDown) return reject(new Error('Shutting down'));
     dc(...command)
       .once('error', reject)
       .once('close', () => resolve());
@@ -692,6 +703,7 @@ function updateSettings(value: any) {
   queueDc('down')
     .catch(err => console.log(`Failed to stop server: ${err}`))
     .then(() => {
+      if (shuttingDown) return;
       startServer();
       createMainWindow(true, gen);
       if (gen === loadingGen) win.show();
