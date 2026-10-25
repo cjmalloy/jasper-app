@@ -133,6 +133,11 @@ const livePtys = new Set<{ resize: (cols: number, rows: number) => void }>();
 type PtySize = { cols: number, rows: number };
 let ptySize: PtySize = { cols: 120, rows: 30 };
 let winPtySize: PtySize | null = null;
+let logsPtySize: PtySize | null = null;
+function logsVisible() {
+  // Closing the logs window only hides it, so it must be visible to own the pty size
+  return !!logs && !logs.isDestroyed() && logs.isVisible();
+}
 function resizePtys(size: PtySize | null) {
   if (!size?.cols || !size?.rows) return;
   if (size.cols === ptySize.cols && size.rows === ptySize.rows) return;
@@ -329,14 +334,24 @@ function startServer() {
     });
 }
 
+let shuttingDown = false;
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Invalidate pending loading screens and stop waiting for the loading screen size
+  loadingGen++;
+  loadingSized();
   writeData();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
     { label: 'Force Quit', click: forceQuit },
   ]));
-  dc('down')
-    .once('close', forceQuit);
+  // Wait for any running compose command so it can't start containers after down
+  composeQueue.then(() => {
+    dc('down')
+      .once('error', forceQuit)
+      .once('close', forceQuit);
+  });
   if (win) win.destroy();
   if (logs) logs.destroy();
   if (settings) settings.destroy();
@@ -474,6 +489,13 @@ function removeLoadingHistory() {
 }
 
 /**
+ * Resolves once a freshly loaded loading screen has reported its terminal size,
+ * so compose sizes its progress output for it instead of the previous page.
+ */
+let loadingSizedPromise: Promise<void> = Promise.resolve();
+let loadingSized = () => {};
+
+/**
  * Show the loading screen and start a new loading generation.
  * Only the most recent generation may replace the loading screen with the UI.
  */
@@ -481,6 +503,10 @@ function showLoadingScreen() {
   loadingGen++;
   if (win && !win.isDestroyed()) {
     if (!isLoadingPage()) {
+      loadingSizedPromise = Promise.race([
+        new Promise<void>(resolve => loadingSized = resolve),
+        wait(2000),
+      ]);
       win.loadFile(path.join(__dirname, 'loading.html'));
     }
     win.show();
@@ -495,11 +521,12 @@ function showLoadingScreen() {
 let composeQueue: Promise<void> = Promise.resolve();
 function queueDc(...command: string[]): Promise<void> {
   const run = () => new Promise<void>((resolve, reject) => {
+    if (shuttingDown) return reject(new Error('Shutting down'));
     dc(...command)
       .once('error', reject)
       .once('close', () => resolve());
   });
-  const result = composeQueue.then(run);
+  const result = composeQueue.then(() => loadingSizedPromise).then(run);
   composeQueue = result.catch(() => {});
   return result;
 }
@@ -636,6 +663,8 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
+  logs.on('show', () => resizePtys(logsPtySize));
+  logs.on('hide', () => resizePtys(winPtySize));
   logs.on('closed', () => resizePtys(winPtySize));
 }
 
@@ -674,6 +703,7 @@ function updateSettings(value: any) {
   queueDc('down')
     .catch(err => console.log(`Failed to stop server: ${err}`))
     .then(() => {
+      if (shuttingDown) return;
       startServer();
       createMainWindow(true, gen);
       if (gen === loadingGen) win.show();
@@ -800,12 +830,13 @@ app.on('ready', () => {
   });
   ipcMain.on('resize-pty', (event, size) => {
     if (!size?.cols || !size?.rows) return;
-    const logsOpen = logs && !logs.isDestroyed();
-    if (logsOpen && event.sender === logs.webContents) {
-      resizePtys(size);
+    if (logs && !logs.isDestroyed() && event.sender === logs.webContents) {
+      logsPtySize = size;
+      if (logsVisible()) resizePtys(size);
     } else {
       winPtySize = size;
-      if (!logsOpen) resizePtys(size);
+      if (!logsVisible()) resizePtys(size);
+      if (win && !win.isDestroyed() && event.sender === win.webContents) loadingSized();
     }
   });
   tray = createTray();
