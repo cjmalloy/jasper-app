@@ -11,10 +11,10 @@ updates:
   schedule:
     interval: daily
   cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
+    default-days: 0
 - package-ecosystem: github-actions
   directory: /
   schedule:
     interval: daily
+  cooldown:
+    default-days: 0
