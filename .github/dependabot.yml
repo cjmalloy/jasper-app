@@ -10,7 +10,11 @@ updates:
   directory: /
   schedule:
     interval: daily
+  cooldown:
+    default-days: 0
 - package-ecosystem: github-actions
   directory: /
   schedule:
     interval: daily
+  cooldown:
+    default-days: 0
