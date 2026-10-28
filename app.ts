@@ -221,7 +221,8 @@ function writeLogs(stream: LogStream, data: string) {
 
 function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
-  const emitter = new EventEmitter();
+  const emitter = new EventEmitter() as EventEmitter & { kill: () => void };
+  emitter.kill = () => {};
   const stream: LogStream = { id: logStreamId++, buf: '', esc: '', done: false };
   try {
     const pty = ptySpawn('docker', [
@@ -237,6 +238,13 @@ function dc(...command: string[]) {
       env: getEnv(),
     });
     livePtys.add(pty);
+    emitter.kill = () => {
+      try {
+        pty.kill();
+      } catch (err) {
+        console.log('Failed to kill pty: ' + err);
+      }
+    };
     logStreams.push(stream);
     pty.onData(data => writeLogs(stream, data));
     pty.onExit(({ exitCode, signal }) => {
@@ -308,39 +316,73 @@ function getEnv(): { [key: string]: string } {
   };
 }
 
+/**
+ * Containers run detached and logs are followed separately, so the log stream
+ * can end (like when the app quits to install an update) without stopping them.
+ */
+let logsFollower: ReturnType<typeof dc> | null = null;
+function followLogs() {
+  logsFollower?.kill();
+  const follower = dc('logs', '-f');
+  logsFollower = follower;
+  follower.once('close', () => {
+    if (logsFollower === follower) logsFollower = null;
+  });
+}
+
 function startServer() {
-  key = generateKey();
+  // Reuse the key from before an update so unchanged services are not recreated
+  key = data.resumeKey || generateKey();
+  if (data.resumeKey) {
+    delete data.resumeKey;
+    writeData();
+  }
+  logsFollower?.kill();
+  logsFollower = null;
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
-  return dc('up')
-    .once('error', err => {
-      dialog.showErrorBox('Docker Compose Missing',
-        'This application requires Docker Compose to be installed.\n' +
-        'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
-        err);
-      app.quit();
-    })
-    .once('exit', (code, signal) => {
-      if (code === 1) {
-        dialog.showErrorBox('Docker Not Running',
-          'This application requires Docker to be running.\n' +
-          'Start Docker and try again.\n');
-      } else if (code !== null) {
-        console.log(`docker process exited with code ${code}`);
-      } else if (signal !== null) {
-        console.log(`docker process terminated by signal ${signal}`);
-      }
-    });
+  const run = () => new Promise<void>(resolve => {
+    if (shuttingDown) return resolve();
+    // Compose only recreates services whose config or image changed
+    dc('up', '-d')
+      .once('error', err => {
+        resolve();
+        dialog.showErrorBox('Docker Compose Missing',
+          'This application requires Docker Compose to be installed.\n' +
+          'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+          err);
+        app.quit();
+      })
+      .once('exit', (code, signal) => {
+        resolve();
+        if (code === 0) {
+          if (!shuttingDown) followLogs();
+        } else if (code === 1) {
+          dialog.showErrorBox('Docker Not Running',
+            'This application requires Docker to be running.\n' +
+            'Start Docker and try again.\n');
+        } else if (code !== null) {
+          console.log(`docker process exited with code ${code}`);
+        } else if (signal !== null) {
+          console.log(`docker process terminated by signal ${signal}`);
+        }
+      });
+  });
+  // Queue so `down` on shutdown can't run while containers are still being started
+  composeQueue = composeQueue.then(run);
 }
 
 let shuttingDown = false;
+let installingUpdate = false;
 function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   // Invalidate pending loading screens and stop waiting for the loading screen size
   loadingGen++;
   loadingSized();
+  // Leave the containers running across an update; the next launch picks them back up
+  if (installingUpdate) data.resumeKey = key;
   writeData();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
@@ -348,6 +390,10 @@ function shutdown() {
   ]));
   // Wait for any running compose command so it can't start containers after down
   composeQueue.then(() => {
+    if (installingUpdate) {
+      logsFollower?.kill();
+      return forceQuit();
+    }
     dc('down')
       .once('error', forceQuit)
       .once('close', forceQuit);
@@ -386,7 +432,10 @@ function checkUpdates() {
             shell.openExternal('https://github.com/cjmalloy/jasper-app/releases/latest');
           } else {
             autoUpdater.downloadUpdate()
-              .then(() => dc('down').once('close', () => autoUpdater.quitAndInstall()));
+              .then(() => {
+                installingUpdate = true;
+                autoUpdater.quitAndInstall();
+              });
           }
         }
       },
