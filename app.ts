@@ -19,6 +19,7 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import * as fs from 'fs';
 import { EventEmitter } from 'events';
+import { execFile } from 'child_process';
 import { spawn as ptySpawn } from '@lydell/node-pty';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -278,6 +279,7 @@ function sendLogServices() {
 }
 
 let key = '';
+let keyReady: Promise<void> = Promise.resolve();
 function generateKey() {
   return crypto.generateKeySync('hmac', {length: 1024}).export().toString('base64');
 }
@@ -330,10 +332,36 @@ function followLogs() {
   });
 }
 
+/**
+ * Read the key from the running server container, so it never has to be saved to disk.
+ * Only users who can already run docker can read it.
+ */
+function runningKey(): Promise<string> {
+  const prefix = 'JASPER_OVERRIDE_SECURITY_BASE64_SECRET=';
+  return new Promise(resolve => {
+    execFile('docker', ['compose', '-f', serverConfig, 'ps', '-q', 'web'], { env: getEnv() }, (err, stdout) => {
+      const id = stdout?.trim();
+      if (err || !id) return resolve('');
+      execFile('docker', ['inspect', '--format', '{{json .Config.Env}}', id], (err, stdout) => {
+        if (err) return resolve('');
+        try {
+          const env: unknown = JSON.parse(stdout);
+          const found = Array.isArray(env) && env.find(e => typeof e === 'string' && e.startsWith(prefix));
+          resolve(found ? found.slice(prefix.length) : '');
+        } catch {
+          resolve('');
+        }
+      });
+    });
+  });
+}
+
 function startServer() {
-  // Reuse the key from before an update so unchanged services are not recreated
-  key = data.resumeKey || generateKey();
-  if (data.resumeKey) {
+  key = generateKey();
+  // v1.3.0 and v1.3.1 saved the key itself; never keep it on disk
+  const resume = !!data.resumeServices || !!data.resumeKey;
+  if (resume) {
+    delete data.resumeServices;
     delete data.resumeKey;
     writeData();
   }
@@ -342,7 +370,10 @@ function startServer() {
   if (data.showLogsOnStart) {
     createLogsWindow();
   }
-  const run = () => new Promise<void>(resolve => {
+  // Reuse the key from before an update so unchanged services are not recreated
+  keyReady = resume ? runningKey().then(running => { if (running) key = running; }) : Promise.resolve();
+  const ready = keyReady;
+  const run = () => ready.then(() => new Promise<void>(resolve => {
     if (shuttingDown) return resolve();
     // Compose only recreates services whose config or image changed
     dc('up', '-d')
@@ -368,7 +399,7 @@ function startServer() {
           console.log(`docker process terminated by signal ${signal}`);
         }
       });
-  });
+  }));
   // Queue so `down` on shutdown can't run while containers are still being started
   composeQueue = composeQueue.then(run);
 }
@@ -382,7 +413,13 @@ function shutdown() {
   loadingGen++;
   loadingSized();
   // Leave the containers running across an update; the next launch picks them back up
-  if (installingUpdate) data.resumeKey = key;
+  if (installingUpdate) {
+    data.resumeServices = true;
+    // Reopen the same page after the update, or the one pending behind a loading screen
+    const current = win && !win.isDestroyed() ? win.webContents.getURL() : '';
+    const page = isEntryUrl(current) ? current : resumeUrl;
+    if (page) data.resumeUrl = page;
+  }
   writeData();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
@@ -605,6 +642,7 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
   // Stop polling once a newer update or settings change takes over the loading screen
   const current = () => gen === loadingGen;
   return waitFor200(getEntry(), showLoading ? 5000 : pollInterval, undefined, current)
+    .then(() => keyReady)
     .then(() => waitFor200(getServerHealthCheck(), pollInterval, { 'X-Jasper-Key': key }, current))
     .then(() => {
       if (!current()) return;
@@ -889,6 +927,11 @@ app.on('ready', () => {
     }
   });
   tray = createTray();
+  if (data.resumeUrl) {
+    if (typeof data.resumeUrl === 'string') resumeUrl = data.resumeUrl;
+    delete data.resumeUrl;
+    writeData();
+  }
   startServer();
   createMainWindow(true)
     .then(() => checkUpdates());
