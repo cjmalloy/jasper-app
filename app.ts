@@ -382,7 +382,13 @@ function shutdown() {
   loadingGen++;
   loadingSized();
   // Leave the containers running across an update; the next launch picks them back up
-  if (installingUpdate) data.resumeKey = key;
+  if (installingUpdate) {
+    data.resumeKey = key;
+    // Reopen the same page after the update, or the one pending behind a loading screen
+    const current = win && !win.isDestroyed() ? win.webContents.getURL() : '';
+    const page = isEntryUrl(current) ? current : resumeUrl;
+    if (page) data.resumeUrl = page;
+  }
   writeData();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Shutting down...' },
@@ -889,6 +895,11 @@ app.on('ready', () => {
     }
   });
   tray = createTray();
+  if (data.resumeUrl) {
+    if (typeof data.resumeUrl === 'string') resumeUrl = data.resumeUrl;
+    delete data.resumeUrl;
+    writeData();
+  }
   startServer();
   createMainWindow(true)
     .then(() => checkUpdates());
