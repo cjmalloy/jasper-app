@@ -5,6 +5,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  MenuItemConstructorOptions,
   nativeImage,
   Notification,
   screen,
@@ -80,13 +81,13 @@ try {
   };
 }
 
-const contextMenuTemplate = [
+const contextMenuTemplate: MenuItemConstructorOptions[] = [
   {label: 'Show Window', click: () => createMainWindow(false)},
-  {label: 'Show Logs', click: createLogsWindow},
+  {label: 'Show Logs', click: () => createLogsWindow()},
   {label: 'Show Backups', click: () => shell.openPath(path.join(data.storageDir, 'default/backups'))},
-  {label: 'Settings', click: createSettingsWindow},
-  {label: 'Check for Updates', click: checkUpdates},
-  {label: 'Quit', click: shutdown}
+  {label: 'Settings', click: () => createSettingsWindow()},
+  {label: 'Check for Updates', click: () => checkUpdates()},
+  {label: 'Quit', click: () => shutdown()}
 ];
 
 function writeData() {
@@ -421,10 +422,10 @@ function shutdown() {
     if (page) data.resumeUrl = page;
   }
   writeData();
-  tray.setContextMenu(Menu.buildFromTemplate([
+  setMenu([
     { label: 'Shutting down...' },
-    { label: 'Force Quit', click: forceQuit },
-  ]));
+    { label: 'Force Quit', click: () => forceQuit() },
+  ]);
   // Wait for any running compose command so it can't start containers after down
   composeQueue.then(() => {
     if (installingUpdate) {
@@ -459,7 +460,7 @@ function checkUpdates() {
   }).then(res => {
     if (!res) return;
     if (res.updateInfo.version <= app.getVersion()) return;
-    tray.setContextMenu(Menu.buildFromTemplate([
+    setMenu([
       ...contextMenuTemplate,
       {
         label: '🌟 Update to v' + res.updateInfo.version,
@@ -476,7 +477,7 @@ function checkUpdates() {
           }
         }
       },
-    ]));
+    ]);
     return res.downloadPromise;
   });
 }
@@ -760,8 +761,21 @@ function createTray() {
   if (process.platform === 'darwin') icon = icon.resize({width: 32});
   const tray = new Tray(icon);
   tray.setToolTip(data.clientTitle);
-  tray.setContextMenu(Menu.buildFromTemplate(contextMenuTemplate));
   return tray;
+}
+
+/**
+ * Show the same items in the tray and in the window menu bar (Alt), for systems without a tray.
+ */
+function setMenu(template: MenuItemConstructorOptions[]) {
+  tray?.setContextMenu(Menu.buildFromTemplate(template));
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    { label: 'Jasper', submenu: template },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
+  ]));
 }
 
 function wait(ms: number): Promise<void> {
@@ -927,6 +941,7 @@ app.on('ready', () => {
     }
   });
   tray = createTray();
+  setMenu(contextMenuTemplate);
   if (data.resumeUrl) {
     if (typeof data.resumeUrl === 'string') resumeUrl = data.resumeUrl;
     delete data.resumeUrl;
