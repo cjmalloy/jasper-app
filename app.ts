@@ -148,7 +148,7 @@ function logsVisible() {
 function updatePtySize() {
   const sizes = [
     ...logsVisible() && logsPtySize ? [logsPtySize] : [],
-    ...isLoadingPage() && winPtySize ? [winPtySize] : [],
+    ...isLoadingPage() && win.isVisible() && winPtySize ? [winPtySize] : [],
   ];
   if (!sizes.length) return;
   resizePtys({
@@ -656,6 +656,8 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
     });
     // The loading screen only shares the pty size while it is showing
     win.webContents.on('did-navigate', updatePtySize);
+    win.on('show', updatePtySize);
+    win.on('hide', updatePtySize);
   }
   if (showLoading && !isLoadingPage()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
