@@ -55,19 +55,24 @@
       if (e.button === 3 || e.button === 4) e.preventDefault();
     }, true);
     // Hide nginx errors from failed health checks while the server is starting
-    // ("<service>-N | ... request: "GET /api/v1/user/whoami ..."").
+    // ("<service>-N | ... request: "GET /api/v1/user/whoami ..."") and lines from
+    // services not checked in the logs window.
     // Lines with a service prefix are held until complete; other lines (compose status,
     // pull progress) are shown as soon as they can't be a service log line.
     const ansi = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b(\[[0-9;?]*)?$/g;
     const healthCheck = /request: "\w+ \/api\/v1\/user\/whoami[ ?"]/;
+    let services = [];
+    let enabled = new Set(['web']);
     let line = '';
     let lineState = null;
     function lineVisible(text, complete) {
       const plain = text.replace(ansi, '').replace(/^\r+/, '');
-      const m = plain.match(/^[A-Za-z0-9][\w.-]*?[-_]\d+\s*\|([\s\S]*)$/);
+      const m = plain.match(/^([A-Za-z0-9][\w.-]*?)[-_]\d+\s*\|([\s\S]*)$/);
       if (m) {
+        const service = services.find(s => m[1] === s || m[1].endsWith('-' + s) || m[1].endsWith('_' + s));
+        if (service && !enabled.has(service)) return false;
         if (!complete) return null;
-        return !healthCheck.test(m[1]);
+        return !healthCheck.test(m[2]);
       }
       if (!complete && plain.length < 100 && /^[\w.-]*\s*$/.test(plain)) return null;
       return true;
@@ -95,6 +100,10 @@
       }
       return out;
     }
+    window.electronAPI.handleLogServices((event, value) => {
+      services = value.services;
+      enabled = new Set(value.enabled);
+    });
     // Buffer logs until the terminal is ready so none are dropped
     let term = null;
     const pending = [];

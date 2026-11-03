@@ -140,6 +140,22 @@ function logsVisible() {
   // Closing the logs window only hides it, so it must be visible to own the pty size
   return !!logs && !logs.isDestroyed() && logs.isVisible();
 }
+/**
+ * Every visible terminal shares one pty, so use the smallest size. Output wider than a
+ * terminal would wrap, and progress redraws (which move the cursor up by line count)
+ * would then scroll instead of rewriting in place.
+ */
+function updatePtySize() {
+  const sizes = [
+    ...logsVisible() && logsPtySize ? [logsPtySize] : [],
+    ...isLoadingPage() && winPtySize ? [winPtySize] : [],
+  ];
+  if (!sizes.length) return;
+  resizePtys({
+    cols: Math.min(...sizes.map(s => s.cols)),
+    rows: Math.min(...sizes.map(s => s.rows)),
+  });
+}
 function resizePtys(size: PtySize | null) {
   if (!size?.cols || !size?.rows) return;
   if (size.cols === ptySize.cols && size.rows === ptySize.rows) return;
@@ -271,12 +287,14 @@ function getServices() {
   ];
 }
 
-function sendLogServices() {
-  if (!logs || logs.isDestroyed()) return;
-  logs.webContents.send('log-services', {
+function sendLogServices(to?: Electron.WebContents) {
+  const value = {
     services: getServices(),
     enabled: Array.isArray(data.logServices) ? data.logServices : ['web'],
-  });
+  };
+  if (to) return to.send('log-services', value);
+  if (logs && !logs.isDestroyed()) logs.webContents.send('log-services', value);
+  if (isLoadingPage()) win.webContents.send('log-services', value);
 }
 
 let key = '';
@@ -636,6 +654,8 @@ function createMainWindow(showLoading = false, gen = loadingGen) {
     win.webContents.on('will-frame-navigate', event => {
       if (isLoadingPage()) event.preventDefault();
     });
+    // The loading screen only shares the pty size while it is showing
+    win.webContents.on('did-navigate', updatePtySize);
   }
   if (showLoading && !isLoadingPage()) {
     win.loadFile(path.join(__dirname, 'loading.html'));
@@ -751,9 +771,9 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
-  logs.on('show', () => resizePtys(logsPtySize));
-  logs.on('hide', () => resizePtys(winPtySize));
-  logs.on('closed', () => resizePtys(winPtySize));
+  logs.on('show', updatePtySize);
+  logs.on('hide', updatePtySize);
+  logs.on('closed', updatePtySize);
 }
 
 function createTray() {
@@ -919,7 +939,9 @@ app.on('ready', () => {
       // Unsubscribe on reload; the new page must fetch again
       wc.on('did-start-loading', () => logSubscribers.delete(wc));
     }
-    if (logs && !logs.isDestroyed() && wc === logs.webContents) sendLogServices();
+    if (logs && !logs.isDestroyed() && wc === logs.webContents || isLoadingPage() && wc === win.webContents) {
+      sendLogServices(wc);
+    }
     if (logBuffer) wc.send('stream-logs', logBuffer);
   });
   ipcMain.on('set-log-services', (event, value) => {
@@ -928,16 +950,17 @@ app.on('ready', () => {
     const services = getServices();
     data.logServices = [...new Set(value)].filter(s => services.includes(s));
     writeData();
+    if (isLoadingPage()) sendLogServices(win.webContents);
   });
   ipcMain.on('resize-pty', (event, size) => {
     if (!size?.cols || !size?.rows) return;
     if (logs && !logs.isDestroyed() && event.sender === logs.webContents) {
       logsPtySize = size;
-      if (logsVisible()) resizePtys(size);
-    } else {
+      updatePtySize();
+    } else if (win && !win.isDestroyed() && event.sender === win.webContents) {
       winPtySize = size;
-      if (!logsVisible()) resizePtys(size);
-      if (win && !win.isDestroyed() && event.sender === win.webContents) loadingSized();
+      updatePtySize();
+      loadingSized();
     }
   });
   tray = createTray();
