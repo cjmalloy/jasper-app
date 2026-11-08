@@ -142,6 +142,7 @@
       for (const f of flags) {
         $('#' + f).prop('checked', settings[f] ?? false);
       }
+      $('select.version').each((i, el) => $(el).val($(`#${el.id}Version`).val()));
     });
 
     window.electronAPI.notifyFinished((event, command) => {
@@ -230,6 +231,9 @@
     }
     window.onload = () => {
       window.electronAPI.fetchSettings();
+      $('select.version').each((i, el) => {
+        $(`#${el.id}Version`).on('input', e => $(el).val(e.currentTarget.value));
+      });
       $('input')
         .focus(e => $(e.currentTarget).css('z-index', 1))
         .blur(e => $(e.currentTarget).css('z-index', ''));
