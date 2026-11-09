@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="referrer" content="no-referrer">
-  <title>Jasper Logs</title>
+  <title data-i18n>Jasper Logs</title>
+  <script src="i18n.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
@@ -136,6 +137,7 @@
       refilter();
     });
     document.addEventListener('DOMContentLoaded', renderServices);
+    window.electronAPI.handleLocale((event, locale) => applyLocale(locale));
   </script>
   <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>

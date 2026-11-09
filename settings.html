@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Jasper Settings</title>
+  <title data-i18n>Jasper Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="node_modules/jquery/dist/jquery.min.js"></script>
+  <script src="i18n.js"></script>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -127,6 +128,7 @@
     ];
 
     window.electronAPI.handleSettings((event, settings) => {
+      applyLocale(settings.locale);
       const activeProfiles = (settings.serverProfiles ?? '').replace(/\s+/g, '').split(',');
       if (settings.serverProfiles) {
         for (const p of profiles) {
@@ -213,10 +215,10 @@
 
     function toggleArchive() {
       const $archive = $('#serverProfiles_archive');
-      if ($archive.prop('checked') && !confirm(
+      if ($archive.prop('checked') && !confirm(t(
         'Enabling the Archive profile turns the database into an append-only log.\n\n' +
         'Once enabled and saved it cannot be disabled.\n\n' +
-        'Are you sure you want to enable it?')) {
+        'Are you sure you want to enable it?'))) {
         $archive.prop('checked', false);
       }
       updateProfiles();
@@ -230,6 +232,9 @@
       $('#serverProfiles').val(activeProfiles.join(','));
     }
     window.onload = () => {
+      applyLocale($('#locale').val());
+      // Preview the selected language; it is saved with the other settings
+      $('#locale').on('change', e => applyLocale(e.currentTarget.value));
       window.electronAPI.fetchSettings();
       $('select.version').each((i, el) => {
         $(`#${el.id}Version`).on('input', e => $(el).val(e.currentTarget.value));
@@ -241,10 +246,10 @@
   </script>
 </head>
 <body>
-<h1>Jasper Application Settings</h1>
+<h1 data-i18n>Jasper Application Settings</h1>
 <div class="label-column">
 
-  <label for="locale">Language</label>
+  <label for="locale" data-i18n>Language</label>
   <div class="form-array">
     <select id="locale">
       <option value="en">English</option>
@@ -252,13 +257,13 @@
     </select>
   </div>
 
-  <label for="appVersion">App Version</label>
+  <label for="appVersion" data-i18n>App Version</label>
   <div class="form-array">
     <input id="appVersion" type="text" disabled>
-    <div title="Check for updates on startup" class="au"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
+    <div data-i18n-title title="Check for updates on startup" class="au"><label for="autoUpdate">🔄</label><input id="autoUpdate" type="checkbox" onchange="patch('autoUpdate')"></div>
   </div>
 
-  <label for="serverVersion">Server Version</label>
+  <label for="serverVersion" data-i18n>Server Version</label>
   <div class="form-array">
     <input id="serverVersion" type="text">
     <select id="server" class="version" onchange="$('#serverVersion').val($('#server').val())">
@@ -268,26 +273,26 @@
       <option>v1.4</option>
       <option>v1.3</option>
     </select>
-    <button id="serverVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('serverVersion')">Update</button>
+    <button id="serverVersion-button" class="update" type="button" data-i18n-title title="Restart this service with the new version" onclick="updateVersion('serverVersion')" data-i18n>Update</button>
     <span id="serverVersion-loading" class="loading">...</span>
-    <div title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
+    <div data-i18n-title title="Check for updates on startup" class="au"><label for="pullServer">🔄</label><input id="pullServer" type="checkbox"></div>
   </div>
 
-  <label for="serverProfiles">Server Profiles</label>
+  <label for="serverProfiles" data-i18n>Server Profiles</label>
   <div class="cb">
-    <span><input type="checkbox" id="serverProfiles_scripts" onclick="updateProfiles()"><label for="serverProfiles_scripts">Server Scripts</label></span>
-    <span><input type="checkbox" id="serverProfiles_proxy" onclick="updateProfiles()"><label for="serverProfiles_proxy">Proxy</label></span>
-    <span><input type="checkbox" id="serverProfiles_file-cache" onclick="updateProfiles()"><label for="serverProfiles_file-cache">File Cache</label></span>
-    <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler">Recycler</label></span>
-    <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload">Preload</label></span>
-    <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug">Debug</label></span>
-    <span title="Database is an append-only log. Cannot be disabled once enabled."><input type="checkbox" id="serverProfiles_archive" onclick="toggleArchive()"><label for="serverProfiles_archive">Archive</label><span id="serverProfiles_archive-lock" style="display: none">🔒</span></span>
+    <span><input type="checkbox" id="serverProfiles_scripts" onclick="updateProfiles()"><label for="serverProfiles_scripts" data-i18n>Server Scripts</label></span>
+    <span><input type="checkbox" id="serverProfiles_proxy" onclick="updateProfiles()"><label for="serverProfiles_proxy" data-i18n>Proxy</label></span>
+    <span><input type="checkbox" id="serverProfiles_file-cache" onclick="updateProfiles()"><label for="serverProfiles_file-cache" data-i18n>File Cache</label></span>
+    <span><input type="checkbox" id="serverProfiles_recycler" onclick="updateProfiles()"><label for="serverProfiles_recycler" data-i18n>Recycler</label></span>
+    <span><input type="checkbox" id="serverProfiles_preload" onclick="updateProfiles()"><label for="serverProfiles_preload" data-i18n>Preload</label></span>
+    <span><input type="checkbox" id="serverProfiles_debug" onclick="updateProfiles()"><label for="serverProfiles_debug" data-i18n>Debug</label></span>
+    <span data-i18n-title title="Database is an append-only log. Cannot be disabled once enabled."><input type="checkbox" id="serverProfiles_archive" onclick="toggleArchive()"><label for="serverProfiles_archive" data-i18n>Archive</label><span id="serverProfiles_archive-lock" style="display: none">🔒</span></span>
   </div>
 
   <span></span>
   <input id="serverProfiles" type="text">
 
-  <label for="serverDefaultRole">Default Role</label>
+  <label for="serverDefaultRole" data-i18n>Default Role</label>
   <div class="form-array">
     <select id="serverDefaultRole">
       <option value="ROLE_ADMIN">admin</option>
@@ -299,16 +304,16 @@
     </select>
   </div>
 
-  <label for="serverRam">Server RAM</label>
+  <label for="serverRam" data-i18n>Server RAM</label>
   <input id="serverRam" type="text">
 
-  <label for="storageDir">Server Storage</label>
+  <label for="storageDir" data-i18n>Server Storage</label>
   <div class="form-array">
     <input id="storageDir" type="text">
-    <button type="button" onclick="openDir($('#storageDir').val())">📂️</button>
+    <button type="button" data-i18n-title title="Open folder" onclick="openDir($('#storageDir').val())">📂️</button>
   </div>
 
-  <label for="clientVersion">UI Version</label>
+  <label for="clientVersion" data-i18n>UI Version</label>
   <div class="form-array">
     <input id="clientVersion" type="text">
     <select id="client" class="version" onchange="$('#clientVersion').val($('#client').val())">
@@ -318,36 +323,36 @@
       <option>v1.4</option>
       <option>v1.3</option>
     </select>
-    <button id="clientVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('clientVersion')">Update</button>
+    <button id="clientVersion-button" class="update" type="button" data-i18n-title title="Restart this service with the new version" onclick="updateVersion('clientVersion')" data-i18n>Update</button>
     <span id="clientVersion-loading" class="loading">...</span>
-    <div title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
+    <div data-i18n-title title="Check for updates on startup" class="au"><label for="pullClient">🔄</label><input id="pullClient" type="checkbox"></div>
   </div>
 
-  <label for="clientTitle">UI Title</label>
+  <label for="clientTitle" data-i18n>UI Title</label>
   <input id="clientTitle" type="text">
 
-  <label for="clientPort">UI Port</label>
+  <label for="clientPort" data-i18n>UI Port</label>
   <input id="clientPort" type="text">
 
-  <label for="databaseVersion">Postgres Version</label>
+  <label for="databaseVersion" data-i18n>Postgres Version</label>
   <div class="form-array">
     <input id="databaseVersion" type="text">
     <select id="database" class="version" onchange="$('#databaseVersion').val($('#database').val())">
       <option>latest</option>
       <option>18</option>
     </select>
-    <button id="databaseVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('databaseVersion')">Update</button>
+    <button id="databaseVersion-button" class="update" type="button" data-i18n-title title="Restart this service with the new version" onclick="updateVersion('databaseVersion')" data-i18n>Update</button>
     <span id="databaseVersion-loading" class="loading">...</span>
-    <div title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
+    <div data-i18n-title title="Check for updates on startup" class="au"><label for="pullDatabase">🔄</label><input id="pullDatabase" type="checkbox"></div>
   </div>
 
-  <label for="dataDir">Postgres Directory</label>
+  <label for="dataDir" data-i18n>Postgres Directory</label>
   <div class="form-array">
     <input id="dataDir" type="text">
-    <button type="button" onclick="openDir($('#dataDir').val())">📂️</button>
+    <button type="button" data-i18n-title title="Open folder" onclick="openDir($('#dataDir').val())">📂️</button>
   </div>
 
-  <label for="sshVersion">SSH Version</label>
+  <label for="sshVersion" data-i18n>SSH Version</label>
   <div class="form-array">
     <input id="sshVersion" type="text">
     <select id="ssh" class="version" onchange="$('#sshVersion').val($('#ssh').val())">
@@ -357,59 +362,59 @@
       <option>v1.2</option>
       <option>v1.1</option>
     </select>
-    <button id="sshVersion-button" class="update" type="button" title="Restart this service with the new version" onclick="updateVersion('sshVersion')">Update</button>
+    <button id="sshVersion-button" class="update" type="button" data-i18n-title title="Restart this service with the new version" onclick="updateVersion('sshVersion')" data-i18n>Update</button>
     <span id="sshVersion-loading" class="loading">...</span>
-    <div title="Check for updates on startup" class="au"><label for="pullSsh">🔄</label><input id="pullSsh" type="checkbox"></div>
+    <div data-i18n-title title="Check for updates on startup" class="au"><label for="pullSsh">🔄</label><input id="pullSsh" type="checkbox"></div>
   </div>
 
-  <label for="sshPort">SSH Port</label>
+  <label for="sshPort" data-i18n>SSH Port</label>
   <input id="sshPort" type="text">
 
-  <label for="cfToken">Cloudflare Token</label>
+  <label for="cfToken" data-i18n>Cloudflare Token</label>
   <input id="cfToken" type="text">
 
-  <label for="ngrokUrl">Ngrok URL</label>
+  <label for="ngrokUrl" data-i18n>Ngrok URL</label>
   <input id="ngrokUrl" type="text">
 
-  <label for="ngrokToken">Ngrok Token</label>
+  <label for="ngrokToken" data-i18n>Ngrok Token</label>
   <input id="ngrokToken" type="text">
 
-  <label for="showLogsOnStart">Show Logs on Startup</label>
+  <label for="showLogsOnStart" data-i18n>Show Logs on Startup</label>
   <div><input id="showLogsOnStart" type="checkbox" onchange="patch('showLogsOnStart')"></div>
 
   <span><!-- Buttons --></span>
   <div>
-    <button type="button" onclick="save()">Save & Hard Reload</button>
+    <button type="button" onclick="save()" data-i18n>Save & Hard Reload</button>
   </div>
 </div>
 <br>
 <hr>
-<h2>Troubleshooting</h2>
+<h2 data-i18n>Troubleshooting</h2>
 <div class="label-column">
 
-  <button id="restart-button" type="button" onclick="sendCommand('restart')">Restart</button>
+  <button id="restart-button" type="button" onclick="sendCommand('restart')" data-i18n>Restart</button>
   <span id="restart-loading" class="loading">...</span>
-  <label>Restart the servers and database</label>
+  <label data-i18n>Restart the servers and database</label>
 
-  <button id="pull-button" type="button" onclick="sendCommand('pull')">Pull New Images</button>
+  <button id="pull-button" type="button" onclick="sendCommand('pull')" data-i18n>Pull New Images</button>
   <span id="pull-loading" class="loading">...</span>
-  <label>Check for updates and download them if available</label>
+  <label data-i18n>Check for updates and download them if available</label>
 
-  <button id="down-button" type="button" onclick="sendCommand('down')">Stop</button>
+  <button id="down-button" type="button" onclick="sendCommand('down')" data-i18n>Stop</button>
   <span id="down-loading" class="loading">...</span>
-  <label>Stop all servers and database</label>
+  <label data-i18n>Stop all servers and database</label>
 
-  <button id="up-button" type="button" onclick="sendCommand('up')">Start</button>
+  <button id="up-button" type="button" onclick="sendCommand('up')" data-i18n>Start</button>
   <span id="up-loading" class="loading">...</span>
-  <label>Start all servers and database if not already started</label>
+  <label data-i18n>Start all servers and database if not already started</label>
 
-  <button id="pause-button" type="button" onclick="sendCommand('pause')">Pause</button>
+  <button id="pause-button" type="button" onclick="sendCommand('pause')" data-i18n>Pause</button>
   <span id="pause-loading" class="loading">...</span>
-  <label>Pause all servers and database</label>
+  <label data-i18n>Pause all servers and database</label>
 
-  <button id="unpause-button" type="button" onclick="sendCommand('unpause')">Unpause</button>
+  <button id="unpause-button" type="button" onclick="sendCommand('unpause')" data-i18n>Unpause</button>
   <span id="unpause-loading" class="loading">...</span>
-  <label>Unpause all servers and database</label>
+  <label data-i18n>Unpause all servers and database</label>
 </div>
 </body>
 </html>
