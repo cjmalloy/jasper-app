@@ -55,7 +55,8 @@ try {
   data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
 } catch(e) {
   data = {
-    locale: app.getLocale(),
+    // Detected from the OS once the app is ready
+    locale: '',
     autoUpdate: true,
     serverVersion: 'v1.5',
     pullServer: true,
@@ -81,14 +82,50 @@ try {
   };
 }
 
-const contextMenuTemplate: MenuItemConstructorOptions[] = [
-  {label: 'Show Window', click: () => createMainWindow(false)},
-  {label: 'Show Logs', click: () => createLogsWindow()},
-  {label: 'Show Backups', click: () => shell.openPath(path.join(data.storageDir, 'default/backups'))},
-  {label: 'Settings', click: () => createSettingsWindow()},
-  {label: 'Check for Updates', click: () => checkUpdates()},
-  {label: 'Quit', click: () => shutdown()}
-];
+// Main process translations, keyed by the English text. Renderer translations are in i18n.js
+const translations: Record<string, Record<string, string>> = {
+  ja: {
+    'Show Window': 'ウィンドウを表示',
+    'Show Logs': 'ログを表示',
+    'Show Backups': 'バックアップを表示',
+    'Settings': '設定',
+    'Check for Updates': '更新を確認',
+    'Quit': '終了',
+    'Shutting down...': 'シャットダウン中...',
+    'Force Quit': '強制終了',
+    'Update to v': 'アップデート v',
+    'Docker Compose Missing': 'Docker Compose が見つかりません',
+    'This application requires Docker Compose to be installed.': 'このアプリケーションには Docker Compose のインストールが必要です。',
+    'Download it at': 'ダウンロード:',
+    'Docker Not Running': 'Docker が起動していません',
+    'This application requires Docker to be running.': 'このアプリケーションには Docker の起動が必要です。',
+    'Start Docker and try again.': 'Docker を起動してから、もう一度お試しください。',
+    'Jasper Update Available': 'Jasper のアップデートがあります',
+    'Downloading latest Jasper update...': '最新の Jasper アップデートをダウンロードしています...',
+    'File saved': 'ファイルを保存しました',
+    'Click to open': 'クリックして開く',
+    'Unable to open file': 'ファイルを開けません',
+  },
+};
+
+function supportedLocale(locale: unknown) {
+  return String(locale ?? '').toLowerCase().startsWith('ja') ? 'ja' : 'en';
+}
+
+function t(text: string) {
+  return translations[supportedLocale(data.locale)]?.[text] ?? text;
+}
+
+function contextMenuTemplate(): MenuItemConstructorOptions[] {
+  return [
+    {label: t('Show Window'), click: () => createMainWindow(false)},
+    {label: t('Show Logs'), click: () => createLogsWindow()},
+    {label: t('Show Backups'), click: () => shell.openPath(path.join(data.storageDir, 'default/backups'))},
+    {label: t('Settings'), click: () => createSettingsWindow()},
+    {label: t('Check for Updates'), click: () => checkUpdates()},
+    {label: t('Quit'), click: () => shutdown()}
+  ];
+}
 
 function writeData() {
   fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2));
@@ -398,9 +435,9 @@ function startServer() {
     dc('up', '-d')
       .once('error', err => {
         resolve();
-        dialog.showErrorBox('Docker Compose Missing',
-          'This application requires Docker Compose to be installed.\n' +
-          'Download it at https://www.docker.com/products/docker-desktop/\n\n' +
+        dialog.showErrorBox(t('Docker Compose Missing'),
+          t('This application requires Docker Compose to be installed.') + '\n' +
+          t('Download it at') + ' https://www.docker.com/products/docker-desktop/\n\n' +
           err);
         app.quit();
       })
@@ -409,9 +446,9 @@ function startServer() {
         if (code === 0) {
           if (!shuttingDown) followLogs();
         } else if (code === 1) {
-          dialog.showErrorBox('Docker Not Running',
-            'This application requires Docker to be running.\n' +
-            'Start Docker and try again.\n');
+          dialog.showErrorBox(t('Docker Not Running'),
+            t('This application requires Docker to be running.') + '\n' +
+            t('Start Docker and try again.') + '\n');
         } else if (code !== null) {
           console.log(`docker process exited with code ${code}`);
         } else if (signal !== null) {
@@ -440,9 +477,9 @@ function shutdown() {
     if (page) data.resumeUrl = page;
   }
   writeData();
-  setMenu([
-    { label: 'Shutting down...' },
-    { label: 'Force Quit', click: () => forceQuit() },
+  setMenu(() => [
+    { label: t('Shutting down...') },
+    { label: t('Force Quit'), click: () => forceQuit() },
   ]);
   // Wait for any running compose command so it can't start containers after down
   composeQueue.then(() => {
@@ -473,15 +510,15 @@ function checkUpdates() {
   autoUpdater.logger = log;
   autoUpdater.autoDownload = data.autoUpdate;
   return autoUpdater.checkForUpdatesAndNotify({
-    title: 'Jasper Update Available',
-    body: 'Downloading latest Jasper update...'
+    title: t('Jasper Update Available'),
+    body: t('Downloading latest Jasper update...')
   }).then(res => {
     if (!res) return;
     if (res.updateInfo.version <= app.getVersion()) return;
-    setMenu([
-      ...contextMenuTemplate,
+    setMenu(() => [
+      ...contextMenuTemplate(),
       {
-        label: '🌟 Update to v' + res.updateInfo.version,
+        label: '🌟 ' + t('Update to v') + res.updateInfo.version,
         click: () => {
           if (process.platform === 'darwin') {
             // Auto update will not work on mac until we get signing keys
@@ -773,6 +810,7 @@ function createLogsWindow() {
   if (!data.logs) data.logs = {};
   logs = createWindow((data.logs));
   logs.loadFile(path.join(__dirname, 'logs.html'));
+  logs.webContents.on('did-finish-load', () => logs.webContents.send('locale', data.locale));
   logs.on('show', updatePtySize);
   logs.on('hide', updatePtySize);
   logs.on('closed', updatePtySize);
@@ -788,8 +826,12 @@ function createTray() {
 
 /**
  * Show the same items in the tray and in the window menu bar (Alt), for systems without a tray.
+ * The template is rebuilt when the language changes.
  */
-function setMenu(template: MenuItemConstructorOptions[]) {
+let menuTemplate: () => MenuItemConstructorOptions[] = contextMenuTemplate;
+function setMenu(builder = menuTemplate) {
+  menuTemplate = builder;
+  const template = builder();
   tray?.setContextMenu(Menu.buildFromTemplate(template));
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
@@ -817,7 +859,10 @@ function updateSettings(value: any) {
     ...data,
     ...value,
   };
+  data.locale = supportedLocale(data.locale);
   writeData();
+  setMenu();
+  if (logs && !logs.isDestroyed()) logs.webContents.send('locale', data.locale);
   sendLogServices();
   resumeUrl = '';
   // UI bundles have the same hashed names in every locale, so drop cached copies
@@ -891,6 +936,8 @@ app.on('second-instance', () => {
 
 app.on('ready', () => {
   if (!singleInstance) return;
+  // Only the languages offered in settings are supported
+  data.locale = supportedLocale(data.locale || app.getLocale());
   registerKeyHook();
   ipcMain.on('fetch-settings', (_event) => settings.webContents.send('update-settings', data));
   ipcMain.on('settings-value', (_event, value) => updateSettings(value));
@@ -916,15 +963,15 @@ app.on('ready', () => {
     await fs.promises.writeFile(filePath, Buffer.from(buffer));
     try {
       const notification = new Notification({
-        title: 'File saved',
-        body: `${path.basename(filePath)} — Click to open`,
+        title: t('File saved'),
+        body: `${path.basename(filePath)} — ${t('Click to open')}`,
       });
       notification.on('click', () => {
         shell.openPath(filePath)
           .then(error => {
-            if (error) dialog.showErrorBox('Unable to open file', error);
+            if (error) dialog.showErrorBox(t('Unable to open file'), error);
           })
-          .catch(error => dialog.showErrorBox('Unable to open file', String(error)));
+          .catch(error => dialog.showErrorBox(t('Unable to open file'), String(error)));
       });
       notification.on('failed', (_event, error) => log.warn('Save notification failed:', error));
       notification.show();

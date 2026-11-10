@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     streamLogs: (callback) => ipcRenderer.on('stream-logs', callback),
     handleLogServices: (callback) => ipcRenderer.on('log-services', callback),
     notifyFinished: (callback) => ipcRenderer.on('finished', callback),
+    handleLocale: (callback) => ipcRenderer.on('locale', callback),
 
   fetchLogs: () => ipcRenderer.send('fetch-logs'),
   resizePty: (size) => ipcRenderer.send('resize-pty', size),
