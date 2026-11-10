@@ -82,6 +82,10 @@ try {
   };
 }
 
+// Chromium formats built-in controls (such as date inputs) in the app locale, which must be set before ready.
+// A language change applies after restart. Until a language is chosen, the OS locale is used.
+if (data.locale) app.commandLine.appendSwitch('lang', supportedLocale(data.locale) === 'ja' ? 'ja' : 'en-US');
+
 // Main process translations, keyed by the English text. Renderer translations are in i18n.js
 const translations: Record<string, Record<string, string>> = {
   ja: {
@@ -105,6 +109,28 @@ const translations: Record<string, Record<string, string>> = {
     'File saved': 'ファイルを保存しました',
     'Click to open': 'クリックして開く',
     'Unable to open file': 'ファイルを開けません',
+    'Edit': '編集',
+    'Undo': '元に戻す',
+    'Redo': 'やり直す',
+    'Cut': '切り取り',
+    'Copy': 'コピー',
+    'Paste': '貼り付け',
+    'Paste and Match Style': 'ペーストしてスタイルを合わせる',
+    'Delete': '削除',
+    'Select All': 'すべてを選択',
+    'View': '表示',
+    'Reload': '再読み込み',
+    'Force Reload': '強制再読み込み',
+    'Toggle Developer Tools': '開発者ツールの切り替え',
+    'Actual Size': '実際のサイズ',
+    'Zoom In': '拡大',
+    'Zoom Out': '縮小',
+    'Toggle Full Screen': 'フルスクリーンの切り替え',
+    'Window': 'ウィンドウ',
+    'Minimize': '最小化',
+    'Zoom': 'ズーム',
+    'Bring All to Front': 'すべてを手前に移動',
+    'Close': '閉じる',
   },
 };
 
@@ -836,10 +862,56 @@ function setMenu(builder = menuTemplate) {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
     { label: 'Jasper', submenu: template },
-    { role: 'editMenu' },
-    { role: 'viewMenu' },
-    { role: 'windowMenu' },
+    ...roleMenus(),
   ]));
+}
+
+/**
+ * Same items as Electron's built-in editMenu, viewMenu and windowMenu roles, which are only in English.
+ */
+function roleMenus(): MenuItemConstructorOptions[] {
+  const mac = process.platform === 'darwin';
+  return [{
+    label: t('Edit'),
+    submenu: [
+      { role: 'undo', label: t('Undo') },
+      { role: 'redo', label: t('Redo') },
+      { type: 'separator' },
+      { role: 'cut', label: t('Cut') },
+      { role: 'copy', label: t('Copy') },
+      { role: 'paste', label: t('Paste') },
+      ...(mac ? [{ role: 'pasteAndMatchStyle', label: t('Paste and Match Style') } as MenuItemConstructorOptions] : []),
+      { role: 'delete', label: t('Delete') },
+      ...(mac ? [] : [{ type: 'separator' } as MenuItemConstructorOptions]),
+      { role: 'selectAll', label: t('Select All') },
+    ],
+  }, {
+    label: t('View'),
+    submenu: [
+      { role: 'reload', label: t('Reload') },
+      { role: 'forceReload', label: t('Force Reload') },
+      { role: 'toggleDevTools', label: t('Toggle Developer Tools') },
+      { type: 'separator' },
+      { role: 'resetZoom', label: t('Actual Size') },
+      { role: 'zoomIn', label: t('Zoom In') },
+      { role: 'zoomOut', label: t('Zoom Out') },
+      { type: 'separator' },
+      { role: 'togglefullscreen', label: t('Toggle Full Screen') },
+    ],
+  }, {
+    label: t('Window'),
+    role: 'window',
+    submenu: [
+      { role: 'minimize', label: t('Minimize') },
+      { role: 'zoom', label: t('Zoom') },
+      ...(mac ? [
+        { type: 'separator' },
+        { role: 'front', label: t('Bring All to Front') },
+      ] as MenuItemConstructorOptions[] : [
+        { role: 'close', label: t('Close') },
+      ] as MenuItemConstructorOptions[]),
+    ],
+  }];
 }
 
 function wait(ms: number): Promise<void> {
