@@ -22,7 +22,7 @@ const translations = {
     'Default Role': 'デフォルトのロール',
     'admin': '管理者',
     'mod': 'モデレーター',
-    'editor': '編集者',
+    'editor': 'エディター',
     'user': 'ユーザー',
     'viewer': '閲覧者',
     'anon': '匿名',
