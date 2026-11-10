@@ -157,20 +157,20 @@
     cursor: '#242424',
     selectionBackground: '#b5d5ff',
   };
-  const t = new Terminal({
+  const xterm = new Terminal({
     disableStdin: true,
     convertEol: true,
     scrollback: 10000,
     fontFamily: 'monospace',
     theme: getTheme(),
   });
-  darkScheme.addEventListener('change', () => t.options.theme = getTheme());
+  darkScheme.addEventListener('change', () => xterm.options.theme = getTheme());
   const fitAddon = new FitAddon.FitAddon();
-  t.loadAddon(fitAddon);
+  xterm.loadAddon(fitAddon);
   const terminal = document.getElementById('terminal');
-  t.open(terminal);
+  xterm.open(terminal);
   fitAddon.fit();
-  const sendSize = () => window.electronAPI.resizePty({ cols: t.cols, rows: t.rows });
+  const sendSize = () => window.electronAPI.resizePty({ cols: xterm.cols, rows: xterm.rows });
   sendSize();
   let resizeFrame = null;
   const resizeObserver = new ResizeObserver(() => {
@@ -182,7 +182,7 @@
     });
   });
   resizeObserver.observe(terminal);
-  term = t;
+  term = xterm;
   while (pending.length) term.write(filter(pending.shift()));
   window.electronAPI.fetchLogs();
 </script>
