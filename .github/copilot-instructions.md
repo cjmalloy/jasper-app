@@ -15,6 +15,7 @@ reports `UP`.
 | `loading.html`, `logs.html`, `settings.html` | Renderer views. They load `@xterm/*` and `jquery` straight from `node_modules/...`. That's why those packages are runtime `dependencies` and why `asar` is `false`. Don't move them to `devDependencies`. |
 | `i18n.js` | Renderer translations (English text → Japanese), applied via `data-i18n` / `data-i18n-title` attributes. Main-process strings (menus, dialogs, notifications) are translated by `t()` in `app.ts`. Both follow the `locale` setting (`en` or `ja`). |
 | `docker-compose.yaml` | Services. Every value comes from `JASPER_*` env vars that `writeEnv()` in `app.ts` sets. |
+| `docker-compose.storage.yaml` | Override added by `composeFiles()` only when `sshStorageAccess` is set. Gives `ssh` `SYS_ADMIN`, unconfined AppArmor, `STORAGE_ACCESS` and a read-only storage mount for SFTP downloads. |
 | `build/` | Icon and macOS entitlements for electron-builder. |
 | `package.json` `build` field | electron-builder config. Output goes to `release/` (git-ignored). |
 
