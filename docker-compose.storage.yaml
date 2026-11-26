@@ -1,0 +1,12 @@
+# Only applied when STORAGE_ACCESS is set, so the SSH container isn't privileged by default
+services:
+  ssh:
+    # Bind mounting the storage folder into each user's SFTP chroot requires mount access
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      STORAGE_ACCESS: "${JASPER_SSH_STORAGE_ACCESS}"
+    volumes:
+      - "${JASPER_STORAGE_DIR:-/var/lib/jasper}:/var/lib/jasper:ro"

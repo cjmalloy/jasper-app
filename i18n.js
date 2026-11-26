@@ -36,6 +36,8 @@ const translations = {
     'Postgres Directory': 'Postgres のディレクトリ',
     'SSH Version': 'SSH のバージョン',
     'SSH Port': 'SSH のポート',
+    'SSH Storage Access': 'SSH ストレージアクセス',
+    "Comma separated tag@origin users granted read-only SFTP access to their origin's storage folder": 'オリジンのストレージフォルダへの読み取り専用 SFTP アクセスを許可する tag@origin ユーザー (カンマ区切り)',
     'Cloudflare Token': 'Cloudflare トークン',
     'Ngrok URL': 'Ngrok URL',
     'Ngrok Token': 'Ngrok トークン',

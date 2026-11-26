@@ -42,6 +42,7 @@ contextMenu({
 });
 
 const serverConfig = path.join(__dirname, 'docker-compose.yaml');
+const storageConfig = path.join(__dirname, 'docker-compose.storage.yaml');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 type ImageTags = {
   server: string[];
@@ -74,6 +75,7 @@ try {
     sshVersion: 'v1.3',
     pullSsh: true,
     sshPort: '8022',
+    sshStorageAccess: '',
     cfToken: '',
     ngrokUrl: '',
     ngrokToken: '',
@@ -305,6 +307,10 @@ function writeLogs(stream: LogStream, data: string) {
   pumpLogs();
 }
 
+function composeFiles() {
+  return ['-f', serverConfig, ...data.sshStorageAccess ? ['-f', storageConfig] : []];
+}
+
 function dc(...command: string[]) {
   // Spawn in a pseudo-TTY so docker compose emits ANSI colors and rewrites
   const emitter = new EventEmitter() as EventEmitter & { kill: () => void };
@@ -313,7 +319,7 @@ function dc(...command: string[]) {
   try {
     const pty = ptySpawn('docker', [
       'compose',
-      '-f', serverConfig,
+      ...composeFiles(),
       ...data.cfToken || command[0] === 'down' ? ['--profile', 'cf'] : [],
       ...data.ngrokToken || command[0] === 'down' ? ['--profile', 'ngrok'] : [],
       ...command,
@@ -399,6 +405,7 @@ function getEnv(): { [key: string]: string } {
     JASPER_SSH_VERSION: data.sshVersion ?? '',
     JASPER_SSH_PULL: data.pullSsh ? 'always' : 'missing',
     JASPER_SSH_PORT: data.sshPort ?? '',
+    JASPER_SSH_STORAGE_ACCESS: data.sshStorageAccess ?? '',
     CLOUDFLARE_TOKEN: data.cfToken ?? '',
     NGROK_URL: data.ngrokUrl ?? '',
     NGROK_TOKEN: data.ngrokToken ?? '',
@@ -426,7 +433,7 @@ function followLogs() {
 function runningKey(): Promise<string> {
   const prefix = 'JASPER_OVERRIDE_SECURITY_BASE64_SECRET=';
   return new Promise(resolve => {
-    execFile('docker', ['compose', '-f', serverConfig, 'ps', '-q', 'web'], { env: getEnv() }, (err, stdout) => {
+    execFile('docker', ['compose', ...composeFiles(), 'ps', '-q', 'web'], { env: getEnv() }, (err, stdout) => {
       const id = stdout?.trim();
       if (err || !id) return resolve('');
       execFile('docker', ['inspect', '--format', '{{json .Config.Env}}', id], (err, stdout) => {

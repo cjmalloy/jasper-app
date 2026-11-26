@@ -119,6 +119,7 @@
       'clientPort',
       'sshVersion',
       'sshPort',
+      'sshStorageAccess',
       'cfToken',
       'ngrokUrl',
       'ngrokToken',
@@ -386,6 +387,9 @@
 
   <label for="sshPort" data-i18n>SSH Port</label>
   <input id="sshPort" type="text">
+
+  <label for="sshStorageAccess" data-i18n>SSH Storage Access</label>
+  <input id="sshStorageAccess" type="text" placeholder="admin@backup" data-i18n-title title="Comma separated tag@origin users granted read-only SFTP access to their origin's storage folder">
 
   <label for="cfToken" data-i18n>Cloudflare Token</label>
   <input id="cfToken" type="text">
