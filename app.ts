@@ -131,6 +131,11 @@ const translations: Record<string, Record<string, string>> = {
     'Zoom': 'ズーム',
     'Bring All to Front': 'すべてを手前に移動',
     'Close': '閉じる',
+    'About Jasper': 'Jasper について',
+    'Services': 'サービス',
+    'Hide Jasper': 'Jasper を非表示',
+    'Hide Others': 'ほかを非表示',
+    'Show All': 'すべてを表示',
   },
 };
 
@@ -860,10 +865,26 @@ function setMenu(builder = menuTemplate) {
   const template = builder();
   tray?.setContextMenu(Menu.buildFromTemplate(template));
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
-    { label: 'Jasper', submenu: template },
+    { label: 'Jasper', submenu: process.platform === 'darwin' ? macAppMenu(template) : template },
     ...roleMenus(),
   ]));
+}
+
+/**
+ * On macOS the first menu is the app menu, so merge the Jasper items into it instead of adding a second Jasper menu.
+ */
+function macAppMenu(template: MenuItemConstructorOptions[]): MenuItemConstructorOptions[] {
+  return [
+    { role: 'about', label: t('About Jasper') },
+    { type: 'separator' },
+    { role: 'services', label: t('Services') },
+    { type: 'separator' },
+    { role: 'hide', label: t('Hide Jasper') },
+    { role: 'hideOthers', label: t('Hide Others') },
+    { role: 'unhide', label: t('Show All') },
+    { type: 'separator' },
+    ...template.map(item => item.label === t('Quit') ? { ...item, accelerator: 'Command+Q' } : item),
+  ];
 }
 
 /**
